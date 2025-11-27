@@ -1,0 +1,326 @@
+title: "Code_2.9_micromammals_delta"
+author: "Jorge"
+date: "2025-03-24"
+output: html_document
+🐀️️️️️️️️️️️️️️🐀🐀️🐀️🐀️️️️️️️️️️️️🐀️
+
+Este es el dataset muestreo de **micromamíferos** que me envía Laura Fuentes (UAM)
+
+-   *Dimensión temporal:* 
+-   *Dimensión espacial:* 
+-   *jorge_traductor* 
+
+
+```{r}
+# Cargar las librerías necesarias
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(ggforce)
+```
+
+```{r}
+# Cargar el archivo de datos
+micro_data <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/micrommals_clean_data.csv")
+head(micro_data)
+
+#He visto que hay una fila con un a abundancia de 4, quizás una noche cayeran dos ratones en la misma trampa, sin embargo, lo voy a eliminar.
+micro_data$observation[micro_data$observation == 4] <- 3
+```
+
+Quito columnas que de momento no necesito. 
+```{r}
+
+micro_data <- micro_data[, !(names(micro_data) %in% c("comments", "author_code", "n_individuals", 
+                                                     "variable_name", "variable_type", "date", 
+                                                     "plot", "habitat"))]
+```
+
+Creo nueva columna de sampling_unit
+```{r}
+micro_data$sampling_unit_new <- paste(micro_data$site, micro_data$treatment, 
+                               micro_data$sampling_unit, micro_data$year, sep = "/")
+
+#Comprobación!
+summary_data <- as.data.frame(table(micro_data$sampling_unit_new))
+
+# Renombrar las columnas para mayor claridad
+colnames(summary_data) <- c("sampling_unit_new", "frequency")
+
+# Ver el resumen
+head(summary_data)
+print("Perfecto! están todos dos veces")
+```
+Creo la nueva especie "ratón" sumando las otras dos. ¿Por qué? Pues porque quier dar el brochazo lo mas gordo posible, pero también porque el muestreo no es independiente, es decir, si una noche cae una musaraña, ya no puede caer un ratón pues la trampa se desactiva. Por lo tanto y de esta manera, el valor máximo siempre será tres en cualquier caso.
+
+```{r}
+# Filtrar los datos para apodemus_sp y sorex_sp
+raton_data <- micro_data[micro_data$level %in% c("apodemus_sp", "sorex_sp"), ]
+
+# Sumar las observaciones de apodemus_sp y sorex_sp para cada sampling_unit_new
+raton_summary <- aggregate(observation ~ sampling_unit_new + site + treatment + sampling_unit + year, 
+                           data = raton_data, sum)
+
+# Añadir la nueva fila para "raton"
+raton_summary$level <- "raton"
+raton_summary$sampling_unit_new <- paste(raton_summary$site, raton_summary$treatment, 
+                                         raton_summary$sampling_unit, raton_summary$year, sep = "/")
+
+# Reordenar las columnas de raton_summary para que coincidan con las de micro_data
+raton_summary <- raton_summary[, c("site", "treatment", "sampling_unit", "year", "observation", "level", "sampling_unit_new")]
+
+# Asegurarse de que las columnas de ambos datasets estén en el mismo orden
+micro_data <- micro_data[, c("site", "treatment", "sampling_unit", "year", "observation", "level", "sampling_unit_new")]
+
+# Combinar el dataset original con la nueva especie "raton"
+micro_data_new <- rbind(micro_data, raton_summary)
+
+# Ver el resultado
+head(micro_data_new)
+
+```
+
+raton_summary
+## Clean data save for baci
+```{r}
+
+raton_summary$observation <- (raton_summary$observation / 3) * 100
+write.csv(raton_summary, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/ratones.csv", row.names = FALSE)
+```
+
+Transformo la variable para que pueda interpretarse como probabilidad de capturar ratones al muestrear ahí una noche.
+```{r}
+# Calcular la probabilidad de detección
+micro_data_new$observation <- (micro_data_new$observation / 3) * 100
+```
+
+Calculo de deltas
+```{r}
+# Filtramos los datos solo para el nivel 'raton'
+raton_data <- micro_data_new[micro_data_new$level == "raton", ]
+
+# Creamos un dataframe vacío para almacenar los resultados
+delta_data <- data.frame(sampling_unit_new_2022 = character(),
+                         sampling_unit_new_2021 = character(),
+                         delta = numeric(),
+                         stringsAsFactors = FALSE)
+
+# Realizamos la comparación entre 2021 y 2022
+for (site in unique(raton_data$site)) {
+  for (treatment in unique(raton_data$treatment)) {
+    # Filtramos las trampas para el sitio y tratamiento específicos
+    data_site_treatment <- raton_data[raton_data$site == site & raton_data$treatment == treatment, ]
+    
+    # Dividimos los datos en 2021 y 2022
+    data_2021 <- data_site_treatment[data_site_treatment$year == 2021, ]
+    data_2022 <- data_site_treatment[data_site_treatment$year == 2022, ]
+    
+    # Solo proceder si tenemos datos tanto para 2021 como para 2022
+    if (nrow(data_2021) > 0 && nrow(data_2022) > 0) {
+      # Comparar las trampas de 2022 con todas las trampas de 2021
+      for (trap_2022 in 1:nrow(data_2022)) {
+        for (trap_2021 in 1:nrow(data_2021)) {
+          # Calculamos la delta para cada par de trampas de 2022 y 2021
+          delta_value <- data_2022$observation[trap_2022] - data_2021$observation[trap_2021]
+          
+          # Añadimos la información al dataframe delta_data
+          delta_data <- rbind(delta_data, data.frame(
+            sampling_unit_new_2022 = data_2022$sampling_unit_new[trap_2022],
+            sampling_unit_new_2021 = data_2021$sampling_unit_new[trap_2021],
+            delta = delta_value
+          ))
+        }
+      }
+    }
+  }
+}
+
+# Ver el resultado
+head(delta_data)
+
+```
+Separamos las columnas ahora para despues ver con qué me quedo.
+```{r}
+# Separar las columnas sampling_unit_new_2022 y sampling_unit_new_2021
+delta_data <- delta_data %>%
+  separate(sampling_unit_new_2022, into = c("site_2022", "treatment_2022", "trap_2022", "year_2022"), sep = "/") %>%
+  separate(sampling_unit_new_2021, into = c("site_2021", "treatment_2021", "trap_2021", "year_2021"), sep = "/")
+delta_data_2<-delta_data
+# Ver el resultado
+head(delta_data)
+hist(delta_data$delta)
+```
+```{r}
+# Crear la columna sampling_unit combinando trap_2022, year_2022, trap_2021, year_2021
+delta_data <- delta_data %>%
+  mutate(sampling_unit = paste(trap_2022, year_2022, trap_2021, year_2021, sep = "/"))
+
+# Eliminar las columnas usadas
+delta_data <- delta_data %>%
+  select(-trap_2022, -year_2022, -trap_2021, -year_2021, -site_2021, -treatment_2021)
+
+# Renombrar las columnas site_2022 y treatment_2022
+delta_data <- delta_data %>%
+  rename(site = site_2022, treatment = treatment_2022)
+
+
+# Renombrar la columna delta a valor
+delta_data <- delta_data %>%
+  rename(valor = delta)
+
+# Añadir las columnas habitat e indice
+delta_data <- delta_data %>%
+  mutate(habitat = NA,  # Columna vacía
+         indice = "rodent_probability")  # Columna con el valor rodent_probability
+
+# Ordenar las columnas en el orden solicitado
+delta_data <- delta_data %>%
+  select(site, habitat, treatment, sampling_unit, indice, valor)
+
+# Ver el resultado
+head(delta_data)
+```
+A graficar!
+```{r}
+# Definir los colores personalizados para los tratamientos
+colores_tratamiento4 <- c(
+  "control" = "#6A9373", 
+  "control_high" = "#6A9373", 
+  "control_hyper" = "#6A9373", 
+  "high" = "#E6B800",  
+  "hyper" = "#9B5F96"
+)
+
+# Crear el gráfico
+ggplot(delta_data, aes(x = treatment, y = valor, fill = treatment)) +
+  geom_boxplot(alpha = 0.7) +  # Graficar el boxplot
+  scale_fill_manual(values = colores_tratamiento4) +  # Usar la paleta de colores personalizada
+  labs(title = "Distribución de probabilidad de ratones por tratamiento y sitio",
+       x = "Tratamiento", y = "Probabilidad de detectar ratones") +
+  facet_wrap(~ site, scales = "free_y") +  # Crear un gráfico para cada sitio
+  theme_minimal() +
+  theme(legend.position = "none")  # Ocultar la leyenda
+dim(delta_data)
+```
+
+```{r}
+ggplot(delta_data, aes(x = valor, fill = treatment)) +
+  geom_density(alpha = 0.7, adjust = 2) +  # Gráfico de densidad
+  scale_fill_manual(values = colores_tratamiento4) +  # Usar la paleta de colores personalizada
+  labs(title = "Distribución de probabilidad de ratones por tratamiento y sitio",
+       x = "Probabilidad de detectar ratones (delta)", y = "Densidad") +
+  facet_wrap(~ site, scales = "free_y") +  # Un gráfico para cada sitio
+  theme_minimal() +
+  theme(legend.position = "top")  # Ocultar la leyen
+```
+```{r}
+# Calcular los valores medios y desviación estándar de delta por sitio y tratamiento
+summary_stats <- delta_data %>%
+  group_by(site, treatment) %>%
+  summarise(
+    mean_delta = mean(valor, na.rm = TRUE),
+    sd_delta = sd(valor, na.rm = TRUE)
+  )
+
+# Mostrar la tabla de resultados
+summary_stats
+```
+
+
+## Clean data save 🐀
+```{r}
+
+write.csv(delta_data, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/taxonomy/rodents_delta.csv", row.names = FALSE)
+```
+
+
+# Prueba modelo especies poco móviles
+Considerando la gran SD de los valores, quiero hacer una prueba, intentando contrastar cad trampa únicamente consigo misma, al igual que con los pitfalls.
+
+```{r}
+head(delta_data_2)
+
+# Filtrar las filas para que solo queden las trampas que se repiten entre 2021 y 2022
+delta_data_2 <- delta_data_2 %>%
+  filter(
+    site_2021 == site_2022 &           # El mismo sitio en 2021 y 2022
+    treatment_2021 == treatment_2022 &  # El mismo tratamiento en 2021 y 2022
+    trap_2021 == trap_2022             # La misma trampa en 2021 y 2022
+  )
+
+# Ver los primeros registros para asegurarse de que el filtro ha funcionado correctamente
+view(delta_data_2)
+
+```
+
+```{r}
+
+
+# Realizar las modificaciones en el dataset
+final_data <- delta_data_2 %>%
+  # Eliminar las columnas no necesarias
+  select(-site_2022, -treatment_2022, -trap_2022, -year_2021, -year_2022) %>%
+  # Renombrar las columnas
+  rename(
+    site = site_2021,               # Renombrar site_2021 a site
+    treatment = treatment_2021,     # Renombrar treatment_2021 a treatment
+    sampling_unit = trap_2021,     # Renombrar trap_2021 a sampling_unit
+    valor = delta                   # Renombrar delta a valor
+  ) %>%
+  # Añadir las columnas habitat y plot (vacías)
+  mutate(
+    habitat = NA,                   # Columna habitat vacía
+    plot = NA,                      # Columna plot vacía
+    indice = "rodent_probability"   # Añadir columna indice con el valor constante
+  )
+
+# Verificar los primeros registros para asegurarse de que todo está correcto
+head(final_data)
+
+```
+```{r}
+# Crear el gráfico
+ggplot(final_data, aes(x = treatment, y = valor, fill = treatment)) +
+  geom_boxplot(alpha = 0.7) +  # Graficar el boxplot
+  scale_fill_manual(values = colores_tratamiento4) +  # Usar la paleta de colores personalizada
+  labs(title = "Distribución de probabilidad de ratones por tratamiento y sitio",
+       x = "Tratamiento", y = "Probabilidad de detectar ratones") +
+  facet_wrap(~ site, scales = "free_y") +  # Crear un gráfico para cada sitio
+  theme_minimal() +
+  theme(legend.position = "none")  # Ocultar la leyenda
+
+ggplot(final_data, aes(x = valor, fill = treatment)) +
+  geom_density(alpha = 0.7, adjust = 2) +  # Gráfico de densidad
+  scale_fill_manual(values = colores_tratamiento4) +  # Usar la paleta de colores personalizada
+  labs(title = "Distribución de probabilidad de ratones por tratamiento y sitio",
+       x = "Probabilidad de detectar ratones (delta)", y = "Densidad") +
+  facet_wrap(~ site, scales = "free_y") +  # Un gráfico para cada sitio
+  theme_minimal() +
+  theme(legend.position = "top")  # Ocultar la leyen
+```
+
+```{r}
+# Calcular los valores medios y desviación estándar de delta por sitio y tratamiento
+summary_stats <- final_data %>%
+  group_by(site, treatment) %>%
+  summarise(
+    mean_delta = mean(valor, na.rm = TRUE),
+    sd_delta = sd(valor, na.rm = TRUE)
+  )
+
+# Mostrar la tabla de resultados
+summary_stats
+```
+# Fijate que DA IGUAL aplicar un tipo de enfoque (yo contra mi mismo) o el otro (todos contra todos).
+Limpio el espacio
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```

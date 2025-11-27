@@ -1,0 +1,160 @@
+---
+title: "Code_1.6_herbvegetation"
+author: "Jorge Isla"
+date: "2025-03-17"
+output: html_document
+---
+🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱🌱
+
+This code clean the herbaceous vegetation dataset and calculates ant richness, diversity, and abundance for each sampling unit (quadrats).
+
+```{r}
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(ggforce)
+```
+
+```{r}
+herbs_data <- read_csv("~/Documents/GitHub/LargeHerbivoreOverabundance/data/herbs_clean_data.csv")
+
+# Creating Sampling Unit
+herbs_data$sampling_unit_new <- paste(herbs_data$site, herbs_data$plot, herbs_data$sampling_unit, herbs_data$year, sep = "_")
+
+# Remove no usefull quadrats
+herbs_data <- herbs_data %>%
+  filter(!(sampling_unit_new %in% c("TFUERA8_NA_2022", "TFUERA7_NA_2022")))
+```
+
+¿How many sampling units?
+```{r}
+n_distinct(herbs_data$sampling_unit_new)
+```
+
+# Preparing and cleaning data
+```{r}
+
+herbs_data <- herbs_data %>%
+  mutate(
+    transect = str_extract(sampling_unit_new, "T\\d+"),  
+    year = str_extract(sampling_unit_new, "\\d{4}$")
+  )
+
+
+herbs_data <- herbs_data %>%
+  group_by(site, transect, year) %>%
+  mutate(new_point = dense_rank(sampling_unit_new)) %>%
+  mutate(new_point = case_when(
+    new_point == 1 ~ 1,
+    new_point == 2 ~ 2,
+    new_point >= 3 ~ 3  
+  )) %>%
+  ungroup()
+
+herbs_data <- herbs_data %>%
+  mutate(
+    sampling_unit = new_point) 
+
+herbs_data <- herbs_data %>%
+  select(-sampling_unit_new, -transect, -new_point)
+
+head(herbs_data)
+```
+
+# Fixing names
+```{r}
+herbs_data <- herbs_data %>%
+  mutate(
+    # --- Fixing ---
+    level = case_when(
+      level == "Allium_sphaerocephalon" ~ "Allium_sphaerocephalum",
+      level == "Atragalus_incanus" ~ "Astragalus_incanus",
+      level == "Centaurea_linnifolia" ~ "Centaurea_linifolia",
+      level == "Klasea_pinnatifida" ~ "Klasea_pinnatifida",
+      level == "Klassea_pinnatifida" ~ "Klasea_pinnatifida",
+      level == "Legousiia_scabra" ~ "Legousia_scabra",
+      level == "Myosotis_ramossisima" ~ "Myosotis_ramosissima",
+      level == "Narcissus_assoanus" ~ "Narcissus_assoanus",
+      level == "Vulpia__myuros" ~ "Vulpia_myuros",
+      TRUE ~ level
+    ),
+    level = str_replace(level, "_subsp\\..*", "")
+  )
+
+# Names check!
+sort(unique(herbs_data$level))
+
+n_distinct(herbs_data$level) 
+```
+
+#Creating matrix
+```{r}
+herbs_data <- herbs_data %>%
+  mutate(sampling_unit_new = paste(site,habitat,year, treatment,plot, sampling_unit, sep = "_"))
+
+n_distinct(herbs_data$sampling_unit_new)
+
+
+abundance_matrix <- herbs_data %>%
+  group_by(site, sampling_unit_new, year, level) %>%
+  summarise(total_abundance = sum(observation, na.rm = TRUE)) %>%
+  ungroup()  
+
+
+abundance_matrix_wide <- abundance_matrix %>%
+  pivot_wider(names_from = level, values_from = total_abundance, values_fill = list(total_abundance = 0))
+
+# Head inspection
+head(abundance_matrix_wide)
+```
+
+```{r}
+wide_data <- abundance_matrix_wide %>%
+  pivot_wider(
+    names_from = year,                    
+    values_from = -c(site, sampling_unit_new, year),  
+    names_glue = "{.value}_Y{year}",        
+    values_fill = list(abundance = 0)       
+)
+
+# Head inspection
+head(wide_data)
+```
+
+## Diversity computation
+```{r}
+species_matrix <- select(abundance_matrix_wide,-site, -year, -sampling_unit_new)
+
+
+abundance_matrix_wide <- abundance_matrix_wide %>%
+  mutate(
+    Riqueza = rowSums(species_matrix > 0),
+    Shannon = exp(vegan::diversity(species_matrix, index = "shannon")),
+    Simpson = vegan::diversity(species_matrix, index = "invsimpson"),
+    Abundancia = rowSums(species_matrix)
+  )
+
+# Re-sorting
+abundance_matrix_wide <- abundance_matrix_wide %>%
+  select(1:2, (ncol(abundance_matrix_wide) - 3):ncol(abundance_matrix_wide))
+
+# Fixing shanon and simpson infinite values for abundance = 0 quadrats
+abundance_matrix_wide <- abundance_matrix_wide %>%
+  mutate(
+    Shannon = ifelse(Abundancia == 0, 0, Shannon),
+    Simpson = ifelse(Abundancia == 0, 0, Simpson)
+  )
+```
+
+## Clean data save for baci
+```{r}
+write.csv(abundance_matrix_wide, file = "/Users/jorgeislaescudero/Documents/GitHub/LargeHerbivoreOverabundance/data/data_for_EffectSizes/herbs.csv", row.names = FALSE)
+```
+
+Limpio el espacio
+```{r}
+rm(list = ls())
+gc()
+cat("\014")
+```

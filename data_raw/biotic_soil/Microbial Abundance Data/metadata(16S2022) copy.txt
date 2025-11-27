@@ -1,0 +1,62 @@
+SampleID	code	sample	zona	plot	treatment
+NGS093-22-100_S63	100	TS22-20	Quintos	Jaral Cercado A	ScrubA
+NGS093-22-101_S74	101	TS56-0	Quintos	Jaral Cercado B	ScrubB
+NGS093-22-102_S85	102	TS56-10	Quintos	Jaral Cercado B	ScrubB
+NGS093-22-103_S5	103	TS56-20	Quintos	Jaral Cercado B	ScrubB
+NGS093-22-104_S17	104	TS54-0	Quintos	Jaral Cercado Control	ScrubC
+NGS093-22-105_S29	105	TS54-10	Quintos	Jaral Cercado Control	ScrubC
+NGS093-22-106_S41	106	TS54-30	Quintos	Jaral Cercado Control	ScrubC
+NGS093-22-107_S53	107	A1	Muela	A	A
+NGS093-22-108_S64	108	A2	Muela	A	A
+NGS093-22-109_S75	109	A3	Muela	A	A
+NGS093-22-110_S86	110	B 1	Muela	B	B
+NGS093-22-111_S6	111	B 2	Muela	B	B
+NGS093-22-112_S18	112	B 3	Muela	B	B
+NGS093-22-113_S30	113	TS13-0	Muela	Control A	CA
+NGS093-22-114_S42	114	TS13-10	Muela	Control A	CA
+NGS093-22-115_S54	115	TS13-20	Muela	Control A	CA
+NGS093-22-116_S65	116	TS5-0	Muela	ControlB	CB
+NGS093-22-117_S76	117	TS5-10	Muela	ControlB	CB
+NGS093-22-118_S87	118	TS5-20	Muela	ControlB	CB
+NGS093-22-119_S7	119	TS1-0	Muela	B	B
+NGS093-22-120_S19	120	TS1-10	Muela	B	B
+NGS093-22-121_S31	121	TS1-20	Muela	B	B
+NGS093-22-122_S43	122	TS6-0	Muela	ControlB	CB
+NGS093-22-123_S55	123	TS6-10	Muela	ControlB	CB
+NGS093-22-124_S66	124	TS6-20	Muela	ControlB	CB
+NGS093-22-125_S77	125	TS9-0	Muela	A	A
+NGS093-22-126_S88	126	TS9-10	Muela	A	A
+NGS093-22-127_S8	127	TS9-20	Muela	A	A
+NGS093-22-128_S20	128	TS14-0	Muela	Control A	CA
+NGS093-22-129_S32	129	TS14-10	Muela	Control A	CA
+NGS093-22-130_S44	130	TS14-20	Muela	Control A	CA
+NGS093-22-71_S1	71	CacaA1Q	Quintos	A	ForestA
+NGS093-22-72_S13	72	CacaA1Q	Quintos	A	ForestA
+NGS093-22-73_S25	73	CacaA1Q	Quintos	A	ForestA
+NGS093-22-74_S37	74	CacaB1Q	Quintos	B	ForestB
+NGS093-22-75_S49	75	CacaB1Q	Quintos	B	ForestB
+NGS093-22-76_S60	76	CacaB1Q	Quintos	B	ForestB
+NGS093-22-77_S71	77	TS6-0	Quintos	Control	ForestC
+NGS093-22-78_S82	78	TS6-10	Quintos	Control	ForestC
+NGS093-22-79_S2	79	TS6-20	Quintos	Control	ForestC
+NGS093-22-80_S14	80	TS21-0	Quintos	Matorral A 1	ScrubA
+NGS093-22-81_S26	81	TS21-10	Quintos	Matorral A 2	ScrubA
+NGS093-22-82_S38	82	TS21-20	Quintos	Matorral A 3	ScrubA
+NGS093-22-83_S50	83	TS57-0	Quintos	Matorral B1	ScrubB
+NGS093-22-84_S61	84	TS57-10	Quintos	Matorral B2	ScrubB
+NGS093-22-85_S72	85	TS57-20	Quintos	Matorral B3	ScrubB
+NGS093-22-86_S83	86	TS53-0	Quintos	Matorral Control	ScrubC
+NGS093-22-87_S3	87	TS53-10	Quintos	Matorral Control	ScrubC
+NGS093-22-88_S15	88	TS53-30	Quintos	Matorral Control	ScrubC
+NGS093-22-89_S27	89	TS16-0	Quintos	Roble Cercado A	ForestA
+NGS093-22-90_S39	90	TS16-10	Quintos	Roble Cercado A	ForestA
+NGS093-22-91_S51	91	TS16-20	Quintos	Roble Cercado A	ForestA
+NGS093-22-92_S62	92	TS12-0	Quintos	Roble Cercado B	ForestB
+NGS093-22-93_S73	93	TS12-10	Quintos	Roble Cercado B	ForestB
+NGS093-22-94_S84	94	TS12-20	Quintos	Roble Cercado B	ForestB
+NGS093-22-95_S4	95	TS8-0	Quintos	Roble Cercado Control	ForestC
+NGS093-22-96_S16	96	TS8-10	Quintos	Roble Cercado Control	ForestC
+NGS093-22-97_S28	97	TS8-20	Quintos	Roble Cercado Control	ForestC
+NGS093-22-98_S40	98	TS22-0	Quintos	Jaral Cercado A	ScrubA
+NGS093-22-99_S52	99	TS22-10	Quintos	Jaral Cercado A	ScrubA
+NGS093-22-Cneg_S89	neg	neg	neg	neg	neg

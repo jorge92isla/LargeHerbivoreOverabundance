@@ -1,0 +1,144 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1671\cocoasubrtf600
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fmodern\fcharset0 Courier;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;}
+\margl1440\margr1440\vieww14000\viewh18120\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 \
+\
+qiime tools import \\\
+--type 'SampleData[PairedEndSequencesWithQuality]' \\\
+--input-path /Users/jk14/Data/manifest_template \\\
+--output-path /Users/jk14/Data/paired-end-demux_allSamples.qza  \\\
+--input-format PairedEndFastqManifestPhred33V2\
+\
+#Summarize results to look at quality to specify settings for denoise\
+\
+qiime demux summarize \\\
+--i-data /Users/jk14/Data/paired-end-demux_allSamples.qza \\\
+--o-visualization /Users/jk14/Data/paired-end-demux_allSamples.qzv\
+\
+# Denoise\
+\
+qiime dada2 denoise-paired \\\
+--i-demultiplexed-seqs /Users/jk14/Data/paired-end-demux_allSamples.qza \\\
+--p-trim-left-f 1 \\\
+--p-trim-left-r 1 \\\
+--p-trunc-len-f 250 \\\
+--p-trunc-len-r 250 \\\
+--p-n-threads 0 \\\
+--o-table /Users/jk14/Data/table-dada2_allSamples.qza \\\
+--o-representative-sequences /Users/jk14/Data/rep-seqs-dada2_allSamples.qza \\\
+--o-denoising-stats /Users/jk14/Data/denoising-stats-dada2_allSamples.qza\
+\
+\
+\
+qiime metadata tabulate \\\
+--m-input-file /Users/jk14/Data/denoising-stats-dada2_allSamples.qza \\\
+--o-visualization /Users/jk14/Data/denoising-stats-dada2_allSamples.qzv
+\f1 \cf2 \expnd0\expndtw0\kerning0
+\
+
+\f0 \cf0 \kerning1\expnd0\expndtw0 \
+\
+qiime feature-table summarize \\\
+--i-table /Users/jk14/Data/table-dada2_allSamples.qza \\\
+--o-visualization /Users/jk14/Data/table-dada2_allSamples.qzv \
+\
+qiime feature-table tabulate-seqs \\\
+--i-data /Users/jk14/Data/rep-seqs-dada2_allSamples.qza \\\
+--o-visualization /Users/jk14/Data/rep-seqs-dada2_allSamples.qzv\
+\
+qiime phylogeny align-to-tree-mafft-fasttree \\\
+  --i-sequences /Users/jk14/Data/rep-seqs-dada2_allSamples.qza \\\
+  --o-alignment /Users/jk14/Data/aligned-rep-seqs_allSamples.qza \\\
+  --o-masked-alignment /Users/jk14/Data/masked-aligned-rep-seqs_allSamples.qza \\\
+  --o-tree /Users/jk14/Data/unrooted-tree_allSamples.qza \\\
+  --o-rooted-tree /Users/jk14/Data/rooted-tree_allSamples.qza\
+\
+qiime diversity core-metrics-phylogenetic \\\
+  --i-phylogeny /Users/jk14/Data/rooted-tree_allSamples.qza \\\
+  --i-table /Users/jk14/Data/table-dada2_allSamples.qza \\\
+  --p-sampling-depth 20000 \\\
+  --m-metadata-file /Users/jk14/Data/metadata.tsv \\\
+  --output-dir /Users/jk14/Data/core-metrics-results_allSamples\
+\
+qiime tools import \\\
+  --type 'FeatureData[Sequence]' \\\
+  --input-path /Users/jk14/Data/sh_refs_qiime_ver9_dynamic_all_27.10.2022.fasta \\\
+  --output-path /Users/jk14/Data/sh_refs_qiime_ver9_dynamic_all_27.10.2022.qza\
+\
+qiime tools import \\\
+  --type 'FeatureData[Taxonomy]' \\\
+  --input-format HeaderlessTSVTaxonomyFormat \\\
+  --input-path /Users/jk14/Data/sh_taxonomy_qiime_ver9_dynamic_all_27.10.2022.txt \\\
+  --output-path /Users/jk14/Data/ref-taxonomy.qza\
+\
+#For Taxonomy\
+\
+qiime feature-classifier extract-reads \\\
+  --i-sequences /Users/jk14/Data/sh_refs_qiime_ver9_dynamic_all_27.10.2022.qza \\\
+  --p-f-primer CTACGTCATTTAGAGGAAGTAA \\\
+  --p-r-primer GCTGCGTTCTTCATCGTTGC \\\
+  --p-trunc-len 120 \\\
+  --p-min-length 100 \\\
+  --p-max-length 400 \\\
+  --o-reads /Users/jk14/Data/ref-seqs.qza\
+\
+qiime feature-classifier fit-classifier-naive-bayes \\\
+  --i-reference-reads /Users/jk14/Data/ref-seqs.qza \\\
+  --i-reference-taxonomy /Users/jk14/Data/ref-taxonomy.qza \\\
+  --o-classifier /Users/jk14/Data/classifier.qza\
+\
+qiime feature-classifier classify-sklearn \\\
+--i-classifier /Users/jk14/Data/classifier.qza \\\
+--i-reads /Users/jk14/Data/rep-seqs-dada2_allSamples.qza \\\
+--o-classification /Users/jk14/Data/Classification_taxonomy_rep-seqs-dada2_allSamples.qza\
+\
+qiime metadata tabulate \\\
+--m-input-file /Users/jk14/Data/Classification_taxonomy_rep-seqs-dada2_allSamples.qza \\\
+--o-visualization /Users/jk14/Data/Classification_taxonomy_rep-seqs-dada2_allSamples\
+\
+qiime feature-table filter-samples \\\
+--i-table /Users/jk14/Data/table-dada2_allSamples.qza \\\
+--p-min-frequency 10000 \\\
+--o-filtered-table /Users/jk14/Data/table-dada2_allSamples_10k_Filter.qza \
+\
+qiime taxa barplot \\\
+--i-table /Users/jk14/Data/table-dada2_allSamples_10k_Filter.qza \\\
+--i-taxonomy /Users/jk14/Data/Classification_taxonomy_rep-seqs-dada2_allSamples.qza \\\
+--m-metadata-file /Users/jk14/Data/metadata.tsv \\\
+--o-visualization /Users/jk14/Data/taxa-bar-plots_allSamples.qzv\
+\
+#try to figure out how to make the OTU table required for ordination and alpha and beta diversity. \
+\
+qiime tools export \\\
+--input-path /Users/jk14/Data/table-dada2_allSamples.qza \\\
+\'97\
+\
+All Above Works on 18July23\
+__________________________________________________________________________________\
+__________________________________________________________________________________________\
+#adam script\
+qiime feature-classifier classify-sklearn \\\
+--i-classifier /Users/jk14/classifier.qza \\\
+--i-reads /Users/jk14/Data/denoising-stats-dada2_allSamples.qza \\\
+--o-classification  /Users/jk14/Classification_taxonomy_rep-seqs-dada2_SLF.qza\
+\
+qiime metadata tabulate \\\
+--m-input-file /nfs/storage1/home/parker/Classification_taxonomy_rep-seqs-dada2_Hsu_0121.qza \\\
+--o-visualization /nfs/storage1/home/parker/Classification_taxonomy_rep-seqs-dada2_Hsu_0121.qva\
+\
+\
+qiime feature-table filter-samples \\\
+--i-table /nfs/storage1/home/parker/table-dada2_Hsu_0121.qza \\\
+--p-min-frequency 80000 \\\
+--o-filtered-table /nfs/storage1/home/parker/table-dada2_Hsu_0121_80k_Filter.qza \\\
+\
+qiime taxa barplot \\\
+--i-table /nfs/storage1/home/parker/table-dada2_Hsu_0121_80k_Filter.qza \\\
+--i-taxonomy /nfs/storage1/home/parker/Classification_taxonomy_rep-seqs-dada2_Hsu_0121.qza \\\
+--m-metadata-file /nfs/storage1/home/parker/16s_manifest_Hsu_0121_singularity.tsv \\\
+--o-visualization /nfs/storage1/home/parker/taxa-bar-plots_Hsu_0121.qzv\
+}

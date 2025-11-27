@@ -1,0 +1,84 @@
+﻿Group,Taxa,Abundance
+Control,Leotiomycetes,0.15 
+Control,Eurotiomycetes,11.58 
+Control,Lecanoromycetes,22.71 
+Control,Pezizomycetes,0.19 
+Control,Saccharomycetes,5.85 
+Control,Sordariomycetes,5.15 
+Control,Taphrinomycetes,0.00 
+Control,Agaricomycetes,21.46 
+Control,Microbotryomycetes,0.17 
+Control,Tremellomycetes,0.01 
+Control,Tritirachiomycetes,0.00 
+Control,Chytridiomycetes,0.00 
+Control,Blastocladiomycetes,0.07 
+Control,Glomeromycetes,26.98 
+Control,Microsporidia,0.00 
+Control,Others,5.68 
+Treatment A,Leotiomycetes,0.14 
+Treatment A,Eurotiomycetes,17.57 
+Treatment A,Lecanoromycetes,27.61 
+Treatment A,Pezizomycetes,0.15 
+Treatment A,Saccharomycetes,4.68 
+Treatment A,Sordariomycetes,4.17 
+Treatment A,Taphrinomycetes,0.00 
+Treatment A,Agaricomycetes,7.63 
+Treatment A,Microbotryomycetes,0.20 
+Treatment A,Tremellomycetes,0.05 
+Treatment A,Tritirachiomycetes,0.01 
+Treatment A,Chytridiomycetes,0.01 
+Treatment A,Blastocladiomycetes,0.04 
+Treatment A,Glomeromycetes,29.34 
+Treatment A,Microsporidia,0.00 
+Treatment A,Others,8.40 
+Treatment B,Leotiomycetes,0.10 
+Treatment B,Eurotiomycetes,15.54 
+Treatment B,Lecanoromycetes,27.50 
+Treatment B,Pezizomycetes,0.28 
+Treatment B,Saccharomycetes,4.60 
+Treatment B,Sordariomycetes,4.21 
+Treatment B,Taphrinomycetes,0.00 
+Treatment B,Agaricomycetes,33.39 
+Treatment B,Microbotryomycetes,0.08 
+Treatment B,Tremellomycetes,0.00 
+Treatment B,Tritirachiomycetes,0.00 
+Treatment B,Chytridiomycetes,0.00 
+Treatment B,Blastocladiomycetes,0.09 
+Treatment B,Glomeromycetes,6.87 
+Treatment B,Microsporidia,0.02 
+Treatment B,Others,7.32 
+Forest,Leotiomycetes,0.12 
+Forest,Eurotiomycetes,12.34 
+Forest,Lecanoromycetes,23.90 
+Forest,Leotiomycetes,0.10 
+Forest,Pezizomycetes,0.18 
+Forest,Saccharomycetes,2.86 
+Forest,Sordariomycetes,3.79 
+Forest,Taphrinomycetes,0.00 
+Forest,Agaricomycetes,35.72 
+Forest,Microbotryomycetes,0.15 
+Forest,Tremellomycetes,0.03 
+Forest,Tritirachiomycetes,0.01 
+Forest,Ustilaginomycetes,0.02 
+Forest,Chytridiomycetes,0.01 
+Forest,Blastocladiomycetes,0.06 
+Forest,Glomeromycetes,15.58 
+Forest,Microsporidia,0.00 
+Forest,Others,5.22 
+Shrub,Leotiomycetes,0.14 
+Shrub,Eurotiomycetes,16.56 
+Shrub,Lecanoromycetes,27.19 
+Shrub,Pezizomycetes,0.22 
+Shrub,Saccharomycetes,6.55 
+Shrub,Sordariomycetes,5.02 
+Shrub,Taphrinomycetes,0.00 
+Shrub,Agaricomycetes,9.87 
+Shrub,Microbotryomycetes,0.15 
+Shrub,Tremellomycetes,0.02 
+Shrub,Tritirachiomycetes,0.00 
+Shrub,Ustilaginomycetes,0.01 
+Shrub,Chytridiomycetes,0.00 
+Shrub,Blastocladiomycetes,0.08 
+Shrub,Glomeromycetes,25.80 
+Shrub,Microsporidia,0.01 
+Shrub,Others,8.38 

@@ -1,0 +1,99 @@
+---
+title: "Code_1.1_ants"
+author: "Jorge Isla Escudero"
+date: "2025-03-07"
+output: html_document
+---
+
+🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜🐜
+
+This code clean the ant dataset and calculates ant richness, diversity, and abundance for each sampling unit (pitfall).
+
+### Pacakage loading
+
+```{r}
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(ggforce)
+```
+
+### Data loading
+
+```{r}
+ants_data <- read_csv("~/Documents/GitHub/LargeHerbivoreOverabundance/data/ants_clean_data.csv")
+head(ants_data)
+```
+
+### Overall founded species
+
+```{r}
+n_distinct(ants_data$level) 
+```
+
+```{r}
+# Abundance estimation
+abundance_matrix <- ants_data %>% 
+  group_by(site, habitat, treatment, year, sampling_unit, level, author_code) %>% 
+  summarise(abundance = sum(observation), .groups = "drop") %>% 
+  pivot_wider(names_from = level, values_from = abundance, values_fill = list(abundance = 0))
+
+# Unique column
+abundance_matrix <- abundance_matrix %>%
+  mutate(sampling_unit = paste(sampling_unit, author_code, sep = "_"))
+
+# Column filter
+abundance_data <- abundance_matrix %>%
+  select(site, treatment, sampling_unit, year, starts_with("Aphaenogaster_"):last_col())
+
+# To wide format spliting by year
+wide_data <- abundance_data %>%
+  pivot_wider(names_from = year, values_from = starts_with("Aphaenogaster_"):last_col(), names_prefix = "Y")
+
+# Remove NA
+wide_data <- wide_data %>%
+  mutate(across(everything(), ~replace(., is.na(.), 0)))
+```
+
+```{r}
+# Species matrix creation
+species_matrix <- select(abundance_matrix, -site, -habitat, -treatment, -year, -sampling_unit, -author_code)
+
+# Richness Diversity and abundance estimation 
+abundance_matrix <- abundance_matrix %>%
+  mutate(
+    Riqueza = rowSums(species_matrix > 0),
+    Shannon = exp(vegan::diversity(species_matrix, index = "shannon")),  
+    Simpson = vegan::diversity(species_matrix, index = "invsimpson"),  
+    Abundancia = rowSums(species_matrix)
+  )
+
+# Just necessary columns
+abundance_matrix <- abundance_matrix %>%
+  select(1:6, (ncol(abundance_matrix) - 3):ncol(abundance_matrix))  # Incluir 'Abundancia'
+
+# Verificar la estructura final de abundance_matrix
+head(abundance_matrix)
+```
+
+### Data save
+
+```{r}
+write.csv(abundance_matrix, file = "/Users/jorgeislaescudero/Documents/GitHub/LargeHerbivoreOverabundance/data/data_for_EffectSizes/ants.csv", row.names = FALSE)
+```
+
+### ¿Number of records?
+
+```{r}
+sum(abundance_matrix$Abundancia)
+```
+
+Space cleaning
+
+```{r}
+rm(list = ls())
+gc()
+
+cat("\014")
+```

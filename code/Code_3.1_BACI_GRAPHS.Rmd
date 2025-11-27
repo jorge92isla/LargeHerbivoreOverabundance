@@ -1,0 +1,791 @@
+---
+title: "Integrative_BACI"
+author: "Jorge"
+date: "2025-05-12"
+output: html_document
+---
+
+Cargamos librerías!
+```{r}
+library(tidyverse)
+library(fs)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+```
+
+```{r}
+# 1. Definir la ruta donde están los archivos CSV 
+ruta_datos <- "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/"
+
+# 2. Listar todos los archivos CSV que terminan en "_baci_results.csv"
+archivos <- dir_ls(ruta_datos, regexp = "_baci_results\\.csv$")
+
+# 3. Función para leer y estandarizar cada archivo
+leer_y_estandarizar <- function(archivo) {
+  # Extraer el nombre del grupo (ej. "ants", "networks") del nombre del archivo
+  grupo <- str_remove(basename(archivo), "_baci_results\\.csv")
+  
+  # Leer el archivo y añadir columna 'Grupo'
+  read_csv(archivo) %>% 
+    mutate(Grupo = grupo, .before = 1)  # Añade la columna al inicio
+}
+
+# 4. Cargar y combinar todos los datos
+datos_combinados <- map_dfr(archivos, leer_y_estandarizar)
+
+# 5. Opcional: Revisar nombres de columnas para estandarizar
+names(datos_combinados) <- names(datos_combinados) %>% 
+  str_to_lower() %>% 
+  str_replace_all(" ", "_")
+
+# 7. Ver las primeras filas
+head(datos_combinados)
+```
+
+Voy a añadir una columna nueva que unifique grupo y variable
+```{r}
+# Asumiendo que tu dataframe combinado se llama 'datos_combinados'
+datos_combinados <- datos_combinados %>% 
+  mutate(variable2 = paste(grupo, variable, sep = "_"))  # Separa con "_"
+
+# Verificación
+head(datos_combinados %>% select(grupo, variable, variable2))
+
+datos_combinados %>% 
+  distinct(variable2) %>% 
+  as.data.frame()  # Convierte a dataframe para evitar truncamiento
+```
+
+```{r}
+datos_combinados <- datos_combinados %>%
+  mutate(type = case_when(
+    variable2 == "ants_Richness" ~ "diversidad",
+    variable2 == "ants_Diversity" ~ "diversidad",
+    variable2 == "ants_Abundance" ~ "diversidad",
+    variable2 == "aves_Richness" ~ "diversidad",
+    variable2 == "aves_Diversity" ~ "diversidad",
+    variable2 == "aves_Abundance" ~ "diversidad",
+    variable2 == "browsing_Browsing CWMb" ~ "funcionalidad",
+    variable2 == "ecofisiologica_Anthocyanin" ~ "funcionalidad",
+    variable2 == "ecofisiologica_Chlorophyll" ~ "funcionalidad",
+    variable2 == "fruitset_fs_lad_pol" ~ "funcionalidad", #
+    variable2 == "fruitset_C.ladanifer (low palatability)" ~ "funcionalidad",
+    variable2 == "fruitset_fs_pop_pol" ~ "funcionalidad", #
+    variable2 == "fruitset_Fruit Set C.populifolius (high palatability)" ~ "funcionalidad",
+    variable2 == "garrapatas_Ticks Abundance" ~ "funcionalidad",
+    variable2 == "habitatcomposition_Bare ground" ~ "funcionalidad",
+    variable2 == "habitatcomposition_Herbs" ~ "funcionalidad", #
+    variable2 == "habitatcomposition_Woody_sp" ~ "funcionalidad",#
+    variable2 == "habitatcomposition_Vegetation Height" ~ "funcionalidad",
+    variable2 == "herbáceas_Richness" ~ "diversidad",
+    variable2 == "herbáceas_Diversity" ~ "diversidad",
+    variable2 == "herbáceas_Abundance" ~ "diversidad",
+    variable2 == "invertebrates_Richness" ~ "diversidad",
+    variable2 == "invertebrates_Diversity" ~ "diversidad",
+    variable2 == "invertebrates_Abundance" ~ "diversidad",
+    variable2 == "leñosas_Richness" ~ "diversidad",
+    variable2 == "leñosas_Diversity" ~ "diversidad",
+    variable2 == "leñosas_Abundance" ~ "diversidad",
+    variable2 == "networks_Weighted Connectance" ~ "funcionalidad",
+    variable2 == "networks_weighted_NODF" ~ "funcionalidad",#
+    variable2 == "networks_Interaction Evenness" ~ "funcionalidad",
+    variable2 == "networks_Modularity" ~ "funcionalidad",
+    variable2 == "networks_Interaction Richness" ~ "funcionalidad",
+    variable2 == "networks_Pollinator Richness" ~ "funcionalidad",
+    variable2 == "networks_Flowering Species Richnes" ~ "funcionalidad",
+    variable2 == "raton_NA" ~ "diversidad",
+    variable2 == "regeneracion_Abundance" ~ "funcionalidad",
+    variable2 == "regeneracion_Richness" ~ "funcionalidad",
+    variable2 == "regeneracion_Diversity" ~ "funcionalidad",
+    variable2 == "sizespectrum_Invertebrate Biomass" ~ "funcionalidad",
+    variable2 == "sizespectrum_Trophic efficiency" ~ "funcionalidad",
+    variable2 == "suelo_NA" ~ "funcionalidad",
+    variable2 == "teabags_s" ~ "funcionalidad",
+    variable2 == "teabags_k" ~ "funcionalidad",
+    TRUE ~ NA_character_
+  ))
+
+
+#Quito los de fruitset determinados por herbívoros + polinización
+#También me quedo la cobertura de herbs, proviene de los transectos y es mas gruesa y menos fina que la de los cuadras.
+
+datos_combinados <- datos_combinados[!(datos_combinados$variable2 %in% c("habitatcomposition_Herbs", "habitatcomposition_Woody_sp", "networks_weighted_NODF")), ]
+```
+
+#Voy a decirle el sitio a los que no lo tengo porque solo era uno.
+```{r}
+#Me he dado cuenta de que todas las de diversidad que son de un único sitio, son de toledo
+datos_combinados <- datos_combinados %>%
+  mutate(site = if_else(type == "diversidad" & is.na(site), "Toledo", site))
+
+#Resulta que todos los funcionales también son de toledo, a excepción de las garrapatas
+datos_combinados <- datos_combinados %>%
+  mutate(site = case_when(
+    type == "funcionalidad" & is.na(site) & grupo == "garrapatas" ~ "Valencia",
+    type == "funcionalidad" & is.na(site) ~ "Toledo",
+    TRUE ~ site
+  ))
+
+```
+
+#Voy a cambiar los resultados de respuesta ecofisiológica, ya que realmente son un delta desde el origen.
+```{r}
+datos_combinados <- datos_combinados %>%
+  mutate(exp_delta_lnrr = if_else(grupo == "ecofisiologica", exp_lnrr, exp_delta_lnrr))
+
+datos_combinados <- datos_combinados %>%
+  mutate(
+    diferencia_significativa = case_when(
+      grupo == "ecofisiologica" & (exp_ci_lower > 1 | exp_ci_upper < 1) ~ "Sí",
+      grupo == "ecofisiologica" ~ "No",
+      TRUE ~ diferencia_significativa  # mantener lo que ya tenías en el resto
+    )
+  )
+
+```
+
+#Voy a imputar datos aquí para garrapatas, pues tengo valores altisimos y quiero unos valores que puedan entrar en las gráficas. PARA EL PAPER TENDRÉ QUE TOMAR DECISIONES A ESRTE RESPECTO
+
+```{r}
+library(dplyr)
+
+#datos_combinados <- datos_combinados %>%
+#  mutate(
+#    exp_delta_lnrr = case_when(
+#      grupo == "garrapatas" & tratamiento == "high"  ~ 3.1, 
+#      grupo == "garrapatas" & tratamiento == "hyper" ~ 2.8, 
+#      TRUE                                           ~ exp_delta_lnrr
+#   ),
+#    exp_ci_lower = case_when(
+#      grupo == "garrapatas" & tratamiento == "high"  ~ 2.5,
+#      grupo == "garrapatas" & tratamiento == "hyper" ~ 2.3,
+#      TRUE                                           ~ exp_ci_lower
+#    ),
+#    exp_ci_upper = case_when(
+#      grupo == "garrapatas" & tratamiento == "high"  ~ 3.9,
+#      grupo == "garrapatas" & tratamiento == "hyper" ~ 4.5,
+#      TRUE                                           ~ exp_ci_upper
+#    )
+#  )
+
+```
+
+
+
+
+```{r}
+ datos_ordenados <- datos_combinados %>%
+  filter(type %in% c("funcionalidad", "diversidad")) %>%
+  arrange(type) %>%  # Ordena primero funcionalidad, luego diversidad
+  mutate(
+    variable2 = factor(variable2, levels = unique(variable2)))  # Mantiene el orden
+
+datos_combinados %>%
+  filter(type == "diversidad") %>%
+  mutate(significativo = exp_ci_lower > 1 | exp_ci_upper < 1) %>%
+  ggplot(aes(x = variable2, y = exp_delta_lnrr, 
+             color = tratamiento, shape = site, alpha = significativo)) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray40") +
+  geom_point(position = position_dodge(width = 0.6), size = 3) +
+  geom_errorbar(aes(ymin = exp_ci_lower, ymax = exp_ci_upper),
+                position = position_dodge(width = 0.6), width = 0.2) +
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4)) +
+  theme_minimal(base_size = 13) +
+  labs(title = "Cambios relativos en métricas de diversidad",
+       y = "Cambio relativo (exp(ΔlnRR))",
+       x = "Métrica",
+       color = "Tratamiento",
+       shape = "Sitio",
+       alpha = "Significativo") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+
+# Preparar los datos
+datos_combinados %>%
+  filter(type == "diversidad") %>%
+  mutate(significativo = exp_ci_lower > 1 | exp_ci_upper < 1,
+         variable2 = factor(variable2, levels = unique(variable2))) %>%
+  ggplot(aes(x = variable2, y = exp_delta_lnrr, 
+             color = tratamiento, shape = site, alpha = significativo)) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray40") +
+  geom_point(position = position_dodge(width = 0.6), size = 3) +
+  geom_errorbar(aes(ymin = exp_ci_lower, ymax = exp_ci_upper),
+                position = position_dodge(width = 0.6), width = 0.2) +
+    ylim(-4, 4) +
+  coord_polar(start = 0, direction = 1) +
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4)) +
+  theme_minimal(base_size = 13) +
+  labs(title = "Cambios relativos en métricas de diversidad (diseño radial)",
+       y = "Cambio relativo (exp(ΔlnRR))",
+       x = "",
+       color = "Tratamiento",
+       shape = "Sitio",
+       alpha = "Significativo") +
+  theme(axis.text.x = element_text(size = 7, angle = 0),
+        axis.text.y = element_blank(),
+        panel.grid.major = element_line(color = "gray90"),
+        panel.grid.minor = element_blank())
+
+grafico <- datos_ordenados %>%
+  mutate(
+    significativo = exp_ci_lower > 1 | exp_ci_upper < 1
+  ) %>%
+  ggplot(aes(
+    x = variable2, 
+    y = exp_delta_lnrr, 
+    color = tratamiento, 
+    shape = site, 
+    alpha = significativo
+  )) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray40") +
+  geom_point(position = position_dodge(width = 0.6), size = 3) +
+  geom_errorbar(
+    aes(ymin = exp_ci_lower, ymax = exp_ci_upper),
+    position = position_dodge(width = 0.6), 
+    width = 0.2
+  ) +
+   ylim(-2, 4) +
+  coord_polar(start = 0, direction = 1) +  # Ángulo 0° arriba
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4)) +
+  theme_minimal() +
+  labs(
+    title = "Cambios relativos en métricas",
+    y = "exp(ΔlnRR)",
+    x = NULL
+  ) +
+  theme(
+    axis.text.x = element_text(size = 8, angle = 0),
+    axis.text.y = element_blank()
+  )
+
+grafico
+```
+
+```{r}
+datos_combinados %>%
+  filter(type == "funcionalidad") %>%
+  mutate(significativo = exp_ci_lower > 1 | exp_ci_upper < 1) %>%
+  ggplot(aes(x = variable2, y = exp_delta_lnrr, 
+             color = tratamiento, shape = site, alpha = significativo)) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray40") +
+  geom_point(position = position_dodge(width = 0.6), size = 3) +
+  geom_errorbar(aes(ymin = exp_ci_lower, ymax = exp_ci_upper),
+                position = position_dodge(width = 0.6), width = 0.2) +
+  ylim(-4, 4) +
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4)) +
+  theme_minimal(base_size = 13) +
+  labs(title = "Cambios relativos en métricas de funcionalidad",
+       y = "Cambio relativo (exp(ΔlnRR))",
+       x = "Métrica",
+       color = "Tratamiento",
+       shape = "Sitio",
+       alpha = "Significativo") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Preparar los datos
+datos_combinados %>%
+  filter(type == "funcionalidad") %>%
+  mutate(significativo = exp_ci_lower > 1 | exp_ci_upper < 1,
+         variable2 = factor(variable2, levels = unique(variable2))) %>%
+  ggplot(aes(x = variable2, y = exp_delta_lnrr, 
+             color = tratamiento, shape = site, alpha = significativo)) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray40") +
+  geom_point(position = position_dodge(width = 0.6), size = 3) +
+  geom_errorbar(aes(ymin = exp_ci_lower, ymax = exp_ci_upper),
+                position = position_dodge(width = 0.6), width = 0.2) +
+    ylim(-4,3) +
+  coord_polar(start = 0, direction = 1) +
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4)) +
+  theme_minimal(base_size = 13) +
+  labs(title = "Cambios relativos en métricas funcionalidad",
+       y = "Cambio relativo (exp(ΔlnRR))",
+       x = "",
+       color = "Tratamiento",
+       shape = "Sitio",
+       alpha = "Significativo") +
+  theme(axis.text.x = element_text(size = 7, angle = 0),
+        axis.text.y = element_blank(),
+        panel.grid.major = element_line(color = "gray90"),
+        panel.grid.minor = element_blank())
+```
+
+```{r}
+datos_combinados %>%
+  mutate(significativo = exp_ci_lower > 1 | exp_ci_upper < 1) %>%
+  ggplot(aes(x = variable2, y = exp_delta_lnrr, 
+             color = tratamiento, shape = site, alpha = significativo)) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray40") +
+  geom_point(position = position_dodge(width = 0.6), size = 3) +
+  geom_errorbar(aes(ymin = exp_ci_lower, ymax = exp_ci_upper),
+                position = position_dodge(width = 0.6), width = 0.2) +
+  ylim(-4, 4) +
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4)) +
+  theme_minimal(base_size = 13) +
+  labs(title = "Cambios relativos en TODAS las métricas",
+       y = "Cambio relativo (exp(ΔlnRR))",
+       x = "Métrica",
+       color = "Tratamiento",
+       shape = "Sitio",
+       alpha = "Significativo") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Preparar los datos
+datos_combinados %>%
+  mutate(significativo = exp_ci_lower > 1 | exp_ci_upper < 1,
+         variable2 = factor(variable2, levels = unique(variable2))) %>%
+  ggplot(aes(x = variable2, y = exp_delta_lnrr, 
+             color = tratamiento, shape = site, alpha = significativo)) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray40") +
+  geom_point(position = position_dodge(width = 0.6), size = 3) +
+  geom_errorbar(aes(ymin = exp_ci_lower, ymax = exp_ci_upper),
+                position = position_dodge(width = 0.6), width = 0.2) +
+    ylim(-1,3) +
+  coord_polar(start = 0, direction = 1) +
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4)) +
+  theme_minimal(base_size = 13) +
+  labs(title = "Cambios relativos en TODAS las métricas",
+       y = "Cambio relativo (exp(ΔlnRR))",
+       x = "",
+       color = "Tratamiento",
+       shape = "Sitio",
+       alpha = "Significativo") +
+  theme(axis.text.x = element_text(size = 7, angle = 0),
+        axis.text.y = element_blank(),
+        panel.grid.major = element_line(color = "gray90"),
+        panel.grid.minor = element_blank())
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# 1. Preparar los datos: calcular significativo y ordenar variables
+datos_grafico <- datos_combinados %>%
+  filter(type %in% c("funcionalidad", "diversidad")) %>%
+  mutate(
+    # --- Calcular variables lógicas ---
+    significativo = exp_ci_lower > 1 | exp_ci_upper < 1,
+    positivo = exp_delta_lnrr > 1,
+    
+    # --- Ordenar variables: funcionalidad primero (arriba), diversidad después (abajo) ---
+    variable2 = factor(
+      variable2,
+      levels = c(
+        unique(variable2[type == "funcionalidad"]),  # Funcionalidad arriba
+        unique(variable2[type == "diversidad"])      # Diversidad abajo
+      )
+    )
+  )
+
+# 2. Calcular límites de las zonas coloreadas
+n_func <- n_distinct(datos_grafico$variable2[datos_grafico$type == "funcionalidad"])
+n_div <- n_distinct(datos_grafico$variable2[datos_grafico$type == "diversidad"])
+
+
+
+
+# 3. Crear el gráfico
+ggplot(datos_grafico, aes(x = variable2, y = exp_delta_lnrr)) +
+  
+  # ---- Zonas sombreadas ----
+  # Funcionalidad (verde arriba)
+  annotate(
+    "rect",
+    xmin = 0.5,
+    xmax = n_func + 0.5,
+    ymin = -2, ymax = 4,
+    fill = "#D85F02", alpha = 0.2
+  ) +
+  
+  # Diversidad (amarillo abajo)
+  annotate(
+    "rect",
+    xmin = n_func + 0.5,
+    xmax = n_func + n_div + 0.5,
+    ymin = -2, ymax = 4,
+    fill = "#45B599", alpha = 0.2
+  ) +
+  
+  # ---- Elementos del gráfico ----
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray40") +
+  geom_errorbar(
+    aes(ymin = exp_ci_lower, ymax = exp_ci_upper, color = tratamiento, alpha = significativo),
+    position = position_dodge(width = 0.6), width = 0.2
+  ) +
+  geom_point(
+    aes(color = tratamiento, shape = site, alpha = significativo),
+    position = position_dodge(width = 0.6), size = 5
+  ) +
+  
+  scale_color_manual(values = c("high" = "#E3626F", "hyper" = "#424242")) +
+  
+  # ---- Ajustes estéticos ----
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4)) +  # Aplica a puntos y barras
+  ylim(-2, 4) +
+  coord_polar(start = 0, direction = 1) +  # 0° arriba
+  theme_minimal() +
+  labs(
+    title = "Funcionalidad (arriba) vs Diversidad (abajo)",
+    y = "exp(ΔlnRR)", x = NULL,
+    color = "Tratamiento", shape = "Sitio", alpha = "Significativo"
+  ) +
+theme_economist(base_size = 14) +
+theme(
+  legend.position = "none",
+  axis.title = element_text(),
+  plot.background = element_rect(fill = "#FFF5E0")  # Fondo beige claro
+)
+```
+
+```{r}
+# 1. Preparar datos para cada tipo
+datos_func <- datos_combinados %>%
+  filter(type == "funcionalidad") %>%
+  mutate(
+    significativo = exp_ci_lower > 1 | exp_ci_upper < 1,
+    variable2 = factor(variable2, levels = unique(variable2))
+  )
+
+datos_div <- datos_combinados %>%
+  filter(type == "diversidad") %>%
+  mutate(
+    significativo = exp_ci_lower > 1 | exp_ci_upper < 1,
+    variable2 = factor(variable2, levels = unique(variable2))
+  )
+
+# 2. Función para crear gráficos de 360°
+crear_grafico_polar <- function(datos, tipo) {
+  n_vars <- n_distinct(datos$variable2)
+  
+  ggplot(datos, aes(x = variable2, y = exp_delta_lnrr)) +
+    # Fondo completo (360°)
+    annotate("rect",
+             xmin = 0.5, xmax = n_vars + 0.5,
+             ymin = 0, ymax = 4,
+             fill = ifelse(tipo == "funcionalidad", "#D85F02", "#45B599"),
+             alpha = 0.3) +
+    
+    # Elementos del gráfico
+    geom_hline(yintercept = 1, linetype = "dashed", color = "black", linewidth = 0.8) +
+    geom_errorbar(
+  aes(ymin = exp_ci_lower, ymax = exp_ci_upper,
+      color = tratamiento, alpha = significativo,
+      group = interaction(tratamiento, site)),  # <- clave aquí
+  position = position_dodge(width = 0.6), width = 0.2, linewidth = 0.7
+) +
+geom_point(
+  aes(color = tratamiento, shape = site, alpha = significativo,
+      group = interaction(tratamiento, site)),  # <- igual aquí
+  position = position_dodge(width = 0.6), size = 6
+) +
+   
+    # Escalas estéticas
+    scale_color_manual(values = c("high" = "#E3626F", "hyper" = "#424242")) +
+    scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.3)) +
+    scale_y_continuous(limits = c(-2, 4)) +
+    
+    # Coordenadas polares (360° completo)
+    coord_polar(start = 1, direction = 1) +
+    
+    # Tema y etiquetas
+    theme_minimal(base_size = 13) +
+    labs(
+      title = ifelse(tipo == "funcionalidad",
+                     "Métricas de Funcionalidad (360°)",
+                     "Taxonomic Diversity"),
+      y = "exp(ΔlnRR)", x = NULL,
+      color = "Tratamiento", shape = "Sitio", alpha = "Significativo"
+    ) +
+theme_economist(base_size = 14) +
+theme(
+  legend.position = "none",
+  axis.title = element_text(),
+  plot.background = element_rect(fill = "#FFF5E0")  # Fondo beige claro
+)
+}
+
+# 3. Crear y mostrar gráficos
+graf_div_360 <- crear_grafico_polar(datos_div, "diversidad")
+
+# Visualizar
+
+graf_div_360
+```
+
+# Intento de diversidad nuevo, para lo cual, creo que debo de crear una nueva columna haciendo el log de la columna ya exponenciada, porque he perdido los datos por el camino no se como.
+
+```{r}
+
+datos_combinados2 <- datos_combinados %>%
+  mutate(
+    delta_lnrr = log(exp_delta_lnrr),
+    ci_lower   = log(exp_ci_lower),
+    ci_upper   = log(exp_ci_upper)
+  )
+
+datos_combinados2 <- datos_combinados2 %>%
+  mutate(
+    site = ifelse(grupo == "aves", "Toledo", site),
+    type = ifelse(grupo == "aves", "diversidad", type)
+  )
+
+
+datos_div <- datos_combinados2 %>%
+  filter(type == "diversidad") %>%
+  mutate(
+    significativo = ci_lower > 0 | ci_upper < 0,  # Ajustado a delta_lnrr
+    variable2 = factor(variable2, levels = unique(variable2))
+  )
+
+crear_grafico_polar <- function(datos, tipo) {
+  datos$variable2 <- factor(datos$variable2,
+    levels = c("leñosas_Simpson", "leñosas_Abundancia", "raton_rodent_abundance",
+               "ants_Riqueza", "ants_Simpson", "ants_Abundancia",
+               "aves_Riqueza", "aves_Simpson","aves_Abundancia", 
+               "invertebrates_Riqueza", "invertebrates_Simpson", "invertebrates_Abundancia",
+               "herbáceas_Riqueza", "herbáceas_Simpson", "herbáceas_Abundancia",  
+               "leñosas_Riqueza")
+  )
+
+  n_vars <- n_distinct(datos$variable2)
+
+  ggplot(datos, aes(x = variable2, y = delta_lnrr)) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "black", linewidth = 0.7) +
+    geom_errorbar(
+      aes(ymin = ci_lower, ymax = ci_upper, color = tratamiento, alpha = significativo,
+          group = interaction(tratamiento, site)),
+      position = position_dodge(width = 0.6), width = 0.2, linewidth = 0.7
+    ) +
+    geom_point(
+      aes(color = tratamiento, shape = site, alpha = significativo,
+          group = interaction(tratamiento, site)),
+      position = position_dodge(width = 0.6), size = 4
+    ) +
+
+    scale_color_manual(values = c("high" = "#E3626F", "hyper" = "#424242")) +
+    scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.3)) +
+    scale_y_continuous(limits = c(-4, 3), breaks = -3:3) +
+
+    coord_polar(start = 1, direction = 1) +
+
+    theme_minimal(base_size = 13) +
+    labs(
+      title = ifelse(tipo == "funcionalidad",
+                     "Métricas de Funcionalidad (360°)",
+                     "Taxonomic Diversity"),
+      y = "ΔlnRR", x = NULL,
+      color = "Tratamiento", shape = "Sitio", alpha = "Significativo"
+    ) +
+    theme_economist(base_size = 14) +
+    theme(
+      legend.position = "none",
+      axis.title = element_text(),
+      # ticks circulares: negros y finos
+      panel.grid.major = element_line(color = "#A5D6C8", linewidth = 0.3),
+      # fondo verde esmeralda con alpha
+      panel.background = element_rect(fill = scales::alpha("white", 0.2), colour = NA),
+      # fondo exterior blanco
+      plot.background = element_rect(fill = "white")
+    )
+}
+
+
+
+# 3. Crear y mostrar gráficos 
+graf_div_360 <- crear_grafico_polar(datos_div, "diversidad") 
+# Visualizar 
+graf_div_360
+
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/raw_div_360.pdf",
+plot = graf_div_360,
+width = 8, height = 8)
+```
+
+```{r}
+# 1. Preparar datos para cada tipo
+datos_func <- datos_combinados %>%
+  filter(type == "funcionalidad") %>%
+  mutate(
+    significativo = exp_ci_lower > 1 | exp_ci_upper < 1,
+    variable2 = factor(variable2, levels = unique(variable2))
+  )
+
+datos_div <- datos_combinados %>%
+  filter(type == "diversidad") %>%
+  mutate(
+    significativo = exp_ci_lower > 1 | exp_ci_upper < 1,
+    variable2 = factor(variable2, levels = unique(variable2))
+  )
+
+# 2. Función para crear gráficos de 360°
+crear_grafico_polar <- function(datos, tipo) {
+  n_vars <- n_distinct(datos$variable2)
+  
+  ggplot(datos, aes(x = variable2, y = exp_delta_lnrr)) +
+    # Fondo completo (360°)
+    annotate("rect",
+             xmin = 0.5, xmax = n_vars + 0.5,
+             ymin = 0, ymax = 4,
+             fill = ifelse(tipo == "funcionalidad", "#D85F02", "#45B599"),
+             alpha = 0.2) +
+    
+    # Elementos del gráfico
+    geom_hline(yintercept = 1, linetype = "dashed", color = "gray40", linewidth = 0.6) +
+    geom_errorbar(
+  aes(ymin = exp_ci_lower, ymax = exp_ci_upper,
+      color = tratamiento, alpha = significativo,
+      group = interaction(tratamiento, site)),  # <- clave aquí
+  position = position_dodge(width = 0.6), width = 0.2, linewidth = 0.7
+) +
+geom_point(
+  aes(color = tratamiento, shape = site, alpha = significativo,
+      group = interaction(tratamiento, site)),  # <- igual aquí
+  position = position_dodge(width = 0.6), size = 5
+) +
+    
+    # Escalas estéticas
+    scale_color_manual(values = c("high" = "#E3626F", "hyper" = "#424242")) +
+    scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.3)) +
+    scale_y_continuous(limits = c(-2, 4)) +
+    
+    # Coordenadas polares (360° completo)
+    coord_polar(start = 1, direction = 1) +
+    
+    # Tema y etiquetas
+    theme_minimal(base_size = 13) +
+    labs(
+      title = ifelse(tipo == "funcionalidad",
+                     "Interactions and Processes",
+                     "Métricas de Diversidad (360°)"),
+      y = "exp(ΔlnRR)", x = NULL,
+      color = "Tratamiento", shape = "Sitio", alpha = "Significativo"
+    ) +
+theme_economist(base_size = 14) +
+theme(
+  legend.position = "none",
+  axis.title = element_text(),
+  plot.background = element_rect(fill = "#FFF5E0")  # Fondo beige claro
+)
+}
+
+# 3. Crear y mostrar gráficos
+graf_func_360 <- crear_grafico_polar(datos_func, "funcionalidad")
+
+
+# Visualizar
+graf_func_360
+
+```
+
+
+Nuevo gráfico también para funcionalidad
+```{r}
+
+# 1. Preparar datos para cada tipo
+datos_func <- datos_combinados2 %>%
+  filter(type == "funcionalidad") %>%
+  mutate(
+    significativo = ci_lower > 0 | ci_upper < 0,  # Ajustado a delta_lnrr
+    variable2 = factor(variable2, levels = unique(variable2))
+  )
+
+# 2. Función para crear gráficos de 360° con delta_lnrr
+crear_grafico_polar_func <- function(datos, tipo) {
+  datos$variable2 <- factor(datos$variable2,
+    levels = c(
+      "browsing_browsing",
+      "ecofisiologica_antocianina",
+      "ecofisiologica_clorofila",
+      "fruitset_fs_lad_total",
+      "fruitset_fs_pop_total",
+      "regeneracion_abundance",
+      "regeneracion_richness",
+      "regeneracion_simpson",
+      "garrapatas_garrapatas",
+      "habitatcomposition_Bare_ground",
+      "habitatcomposition_altura",
+       "sizespectrum_invertebrate_biomass",
+      "sizespectrum_lambda",
+      "networks_Wconnectance",
+      "networks_interaction_evenness",
+      "networks_modularity",
+      "networks_riqueza_interacciones",
+      "networks_especies_polinizadores",
+      "networks_especies_plantas",
+      "suelo_soil_density",
+      "teabags_s",
+      "teabags_k"
+    )
+  )
+
+  n_vars <- n_distinct(datos$variable2)
+
+  ggplot(datos, aes(x = variable2, y = delta_lnrr)) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "black", linewidth = 0.7) +
+    geom_errorbar(
+      aes(ymin = ci_lower, ymax = ci_upper, color = tratamiento, alpha = significativo,
+          group = interaction(tratamiento, site)),
+      position = position_dodge(width = 0.6), width = 0.2, linewidth = 0.7
+    ) +
+    geom_point(
+      aes(color = tratamiento, shape = site, alpha = significativo,
+          group = interaction(tratamiento, site)),
+      position = position_dodge(width = 0.6), size = 4
+    ) +
+
+    scale_color_manual(values = c("high" = "#E3626F", "hyper" = "#424242")) +
+    scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.3)) +
+    scale_y_continuous(limits = c(-4.04, 3), breaks = -3:3) +
+
+    coord_polar(start = 1, direction = 1) +
+
+    theme_minimal(base_size = 13) +
+    labs(
+      title = ifelse(tipo == "funcionalidad",
+                     "Métricas de Funcionalidad (360°)",
+                     "Taxonomic Diversity"),
+      y = "ΔlnRR", x = NULL,
+      color = "Tratamiento", shape = "Sitio", alpha = "Significativo"
+    ) +
+    theme_economist(base_size = 14) +
+    theme(
+      legend.position = "none",
+      axis.title = element_text(),
+      panel.grid.major = element_line(color = "#D85F02", linewidth = 0.3),
+      panel.background = element_rect(fill = scales::alpha("white", 0.2), colour = NA),
+      plot.background = element_rect(fill = "white")
+    )
+}
+
+# Crear y visualizar gráfico
+graf_func_360 <- crear_grafico_polar_func(datos_func, "funcionalidad")
+graf_func_360
+
+
+ggsave(
+  filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/raw_func_360.pdf",
+  plot = graf_func_360,
+  width = 8, height = 8
+)
+```
+
+
+# Guardo dataset de datos combinados para analizarlo en un siguiente 
+
+```{r}
+# Crear la ruta completa (asegúrate de que el directorio existe)
+ruta_csv <- "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/datos_combinados.csv"
+
+# Guardar el archivo
+write.csv(datos_combinados2, file = ruta_csv, row.names = FALSE)
+```
+
+
+

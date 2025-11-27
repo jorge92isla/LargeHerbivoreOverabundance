@@ -1,0 +1,385 @@
+---
+title: "Code_3.2_Magnitud"
+author: "Jorge"
+date: "2025-05-19"
+output: html_document
+---
+
+En este dataset quiero lleva a cabo la comparación de los dos tipos de variables.
+
+# comparación de los dos tipos de variables.
+
+Cargamos paquetes
+```{r}
+library(tidyverse)
+library(fs)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(gghalves)
+library(ggthemes)
+library(lme4)
+library(DHARMa)
+```
+
+
+
+
+Primero vamos a cargar los datos.
+```{r}
+datos_combinados <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/results/datos_combinados.csv")
+
+datos_combinados <- datos_combinados %>%
+  filter(variable != "weighted_NODF")
+```
+
+- Transformo la respuesta (+/-) a magnitud, haciendolos todos positivos al restarles 1, por lo tanto es su distancia a este umbral. 
+- Quito columnas inecesarias
+
+```{r}
+datos_combinados <- datos_combinados %>%
+  mutate(
+    # Magnitud del efecto: distancia al valor nulo (1) en escala original
+    mag = abs(exp_delta_lnrr - 1),
+    mag2 = abs(delta_lnrr),
+    
+    # Intervalos de confianza de esa distancia
+    mag_lower = abs(exp_ci_lower - 1),
+    mag_upper = abs(exp_ci_upper - 1)
+  )
+
+#Filtro columnas innecesarias
+datos_combinados <- datos_combinados %>%
+  select(grupo, site, tratamiento, variable,diferencia_significativa, variable2, type, mag, mag2, mag_lower, mag_upper )
+
+ggplot(datos_combinados, aes(x = mag, y = mag2)) +
+    geom_point() +
+     labs(x = "Nombre de X", y = "Nombre de Y") +
+    theme_minimal()
+```
+
+Tablas resumen a modo de visión cualitativa!
+
+```{r}
+#Tabla para estadístico general
+tabla_resumen1 <- datos_combinados %>%
+  group_by(type, grupo) %>%                                    # Agrupar por tipo y variable
+  summarise(significativa = any(diferencia_significativa == "Sí")) %>%  # Ver si en algún caso fue significativa
+  ungroup() %>%
+  group_by(type) %>%                                               # Ahora agrupamos solo por tipo
+  summarise(
+    total_variables = n(),                                         # Cuántas variables distintas hay por tipo
+    variables_significativas = sum(significativa),                # En cuántas hubo al menos un caso significativo
+    porcentaje = round(100 * variables_significativas / total_variables, 1),  # Porcentaje
+    ratio = paste0(variables_significativas, "/", total_variables)           # Cadena tipo "3/9"
+  )
+
+tabla_resumen2 <- datos_combinados %>%
+  group_by(type, variable2) %>%                                    # Agrupar por tipo y variable
+  summarise(significativa = any(diferencia_significativa == "Sí")) %>%  # Ver si en algún caso fue significativa
+  ungroup() %>%
+  group_by(type) %>%                                               # Ahora agrupamos solo por tipo
+  summarise(
+    total_variables = n(),                                         # Cuántas variables distintas hay por tipo
+    variables_significativas = sum(significativa),                # En cuántas hubo al menos un caso significativo
+    porcentaje = round(100 * variables_significativas / total_variables, 1),  # Porcentaje
+    ratio = paste0(variables_significativas, "/", total_variables)           # Cadena tipo "3/9"
+  )
+
+
+tabla_resumen3 <- datos_combinados %>%
+  group_by(tratamiento, variable2) %>%                                    # Agrupar por tipo y variable
+  summarise(significativa = any(diferencia_significativa == "Sí")) %>%  # Ver si en algún caso fue significativa
+  ungroup() %>%
+  group_by(tratamiento) %>%                                               # Ahora agrupamos solo por tipo
+  summarise(
+    total_variables = n(),                                         # Cuántas variables distintas hay por tipo
+    variables_significativas = sum(significativa),                # En cuántas hubo al menos un caso significativo
+    porcentaje = round(100 * variables_significativas / total_variables, 1),  # Porcentaje
+    ratio = paste0(variables_significativas, "/", total_variables)           # Cadena tipo "3/9"
+  )
+
+tabla_resumen4 <- datos_combinados %>%
+  group_by(site, variable2) %>%                                    # Agrupar por tipo y variable
+  summarise(significativa = any(diferencia_significativa == "Sí")) %>%  # Ver si en algún caso fue significativa
+  ungroup() %>%
+  group_by(site) %>%                                               # Ahora agrupamos solo por tipo
+  summarise(
+    total_variables = n(),                                         # Cuántas variables distintas hay por tipo
+    variables_significativas = sum(significativa),                # En cuántas hubo al menos un caso significativo
+    porcentaje = round(100 * variables_significativas / total_variables, 1),  # Porcentaje
+    ratio = paste0(variables_significativas, "/", total_variables)           # Cadena tipo "3/9"
+  )
+
+tabla_resumen1
+tabla_resumen2
+tabla_resumen3
+tabla_resumen4
+```
+Grafico barplots
+```{r}
+# TABLA 1, BIG PICTURE
+figure_1 <- datos_combinados %>%
+  group_by(type, grupo) %>%
+  summarise(significativa = any(diferencia_significativa == "Sí"), .groups = "drop") %>%
+  group_by(type) %>%
+  mutate(
+    total = n(),
+    fraccion = 1 / total,
+    fill_color = case_when(
+      type == "diversidad" ~ "#1b9e77",
+      type == "funcionalidad" ~ "#D85F02"
+    ),
+    alpha_val = ifelse(significativa, 1, 0.4)
+  ) %>%
+  arrange(type, desc(significativa)) %>%
+  ggplot(aes(x = type, y = fraccion)) +
+  geom_bar(stat = "identity", position = "stack",
+           aes(fill = fill_color, alpha = alpha_val),
+           width = 0.5, color = "white") +
+  scale_fill_identity() +
+  scale_alpha_identity() +
+  scale_y_continuous(labels = percent_format(accuracy = 1),
+                     expand = expansion(mult = c(0, 0))) +
+  scale_x_discrete(labels = c(
+    "diversidad" = "Species\nDiversity",
+    "funcionalidad" = "Ecosystem\nFunctioning"
+  )) +
+  labs(
+    x = NULL,
+    y = "% Variables with significant responses",
+    caption = "Dark shading denotes variables containing ≥1 significant metric"
+  ) +
+  theme_economist(base_size = 14) +
+  theme(
+    legend.position = "none",
+    axis.title = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold", size = 16, margin = margin(r = 15)), # tamaño aumentado
+    axis.text.x = element_text(size = 16, face = "bold", vjust = 0.5),
+    axis.text.y = element_text(size = 13, margin = margin(r = 3)),
+    axis.ticks.y = element_line(color = "black"),
+    plot.background = element_rect(fill = "white"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1)
+  )
+
+ggsave(
+  filename = "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Figure_1raw.pdf",
+  plot = figure_1,
+  width = 8.24,       # en pulgadas
+  height = 9.78,      # en pulgadas
+  units = "in"
+)
+
+ # TABLA 2, SMALL PICTURE
+datos_combinados %>%
+  group_by(type, variable2) %>%
+  summarise(significativa = any(diferencia_significativa == "Sí"), .groups = "drop") %>%
+  group_by(type) %>%
+  mutate(
+    total = n(),
+    fraccion = 1 / total,
+    fill_color = case_when(
+      type == "diversidad" ~ "#1b9e77",
+      type == "funcionalidad" ~ "#D85F02"
+    ),
+    alpha_val = ifelse(significativa, 1, 0.4)
+  ) %>%
+  arrange(type, desc(significativa)) %>%
+  ggplot(aes(x = type, y = fraccion)) +
+  geom_bar(stat = "identity", position = "stack",
+           aes(fill = fill_color, alpha = alpha_val),
+           width = 0.5, color = "white") +
+  scale_fill_identity() +
+  scale_alpha_identity() +
+  scale_y_continuous(labels = percent_format(accuracy = 1), expand = expansion(mult = c(0, 0))) +
+  labs(
+    title = "Short-term ungulate-sensitive specific metrics distribution",
+    x = NULL,
+    y = "Percentage (%)",
+    caption = "Dark shading denotes significant metrics"
+  ) +
+theme_economist(base_size = 10) +
+theme(
+  legend.position = "none",
+  axis.title = element_text(),
+  plot.background = element_rect(fill = "white")  # Fondo beige claro
+)
+```
+
+
+
+
+
+
+
+```{r}
+library(ggthemes)
+ggplot(datos_combinados %>% filter(!is.na(mag2)), aes(x = type, y = mag2, fill = type)) +
+  geom_half_violin(
+    side = "l",
+    alpha = 0.4,
+    color = NA,
+    position = position_nudge(x = -0.18)
+  ) +
+  geom_boxplot(
+    width = 0.25,
+    alpha = 0.3,
+    position = position_nudge(x = 0),
+    outlier.shape = NA,
+    color = "black",
+    linewidth = 0.8
+  ) +
+  geom_point(
+    aes(color = type),
+    position = position_jitter(width = 0.08, height = 0),
+    alpha = 0.8,
+    size = 4,
+    show.legend = FALSE
+  ) +
+  scale_fill_manual(values = c("funcionalidad" = "#D85F02", "diversidad" = "#45B599")) +
+  scale_color_manual(values = c("funcionalidad" = "#D85F02", "diversidad" = "#45B599")) +
+  scale_y_log10(  # Transformación logarítmica del eje y
+    breaks = scales::trans_breaks("log10", function(x) 10^x),  # Marcas en potencias de 10
+    labels = scales::trans_format("log10", scales::math_format(10^.x))  # Etiquetas en formato 10^x
+  ) +
+  labs(
+    y = "Effect size (log)"
+  ) +
+theme_economist(base_size = 14) +
+theme(
+  legend.position = "none",
+  axis.title = element_text(face = "bold"),
+  plot.background = element_rect(fill = "#FFF5E0")  # Fondo beige claro
+)
+
+```
+
+
+Exploremos la naturaleza de los datos antes de ajustar modelos
+```{r}
+ggplot(datos_combinados, aes(x = mag)) +
+  geom_histogram(bins = 30, fill = "#4DAF4A", color = "white") +
+  theme_minimal() +
+  labs(title = "Distribución de mag (sin filtrar)",
+       x = "Magnitud del efecto (mag)",
+       y = "Frecuencia")
+
+#Garrapatas & Fruitset
+datos_filtrados <- datos_combinados %>%
+  filter(!grupo %in% c("garrapatas", "fruitset"),   # Excluye ambos grupos
+         !is.na(mag),                                # mag no sea NA
+         mag > 0)                                    # mag > 0
+ggplot(datos_filtrados, aes(x = mag2)) +
+  geom_histogram(bins = 30, fill = "#377EB8", color = "white") +
+  theme_minimal() +
+  labs(title = "Distribución de mag (sin garrapatas)",
+       x = "Magnitud del efecto (mag)",
+       y = "Frecuencia")
+
+
+
+```
+```{r}
+library(ggplot2)
+library(ggthemes)
+library(dplyr)
+library(gghalves) # geom_half_violin
+
+figure_2 <-ggplot(datos_filtrados %>% filter(!is.na(mag2)), aes(x = type, y = mag2, fill = type)) +
+  geom_half_violin(
+    side = "l",
+    alpha = 0.4,
+    color = NA,
+    position = position_nudge(x = -0.18)
+  ) +
+  geom_boxplot(
+    width = 0.25,
+    alpha = 0.3,
+    position = position_nudge(x = 0),
+    outlier.shape = NA,
+    color = "black",
+    linewidth = 0.8
+  ) +
+  geom_point(
+    aes(color = type),
+    position = position_jitter(width = 0.08, height = 0),
+    alpha = 0.7,
+    size = 5,
+    show.legend = FALSE
+  ) +
+  scale_fill_manual(values = c("funcionalidad" = "#D85F02", "diversidad" = "#1b9e77")) +
+  scale_color_manual(values = c("funcionalidad" = "#D85F02", "diversidad" = "#1b9e77")) +
+  scale_y_log10(
+    breaks = scales::trans_breaks("log10", function(x) 10^x),
+    labels = scales::trans_format("log10", scales::math_format(10^.x))
+  ) +
+  scale_x_discrete(labels = c(
+    "diversidad" = "Species\nDiversity",
+    "funcionalidad" = "Ecosystem\nFunctioning"
+  )) +
+  labs(
+    y = "ΔlnRR Effect size",
+    x = NULL
+  ) +
+  theme_economist(base_size = 14) +
+  theme(
+    legend.position = "none",
+    axis.title = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold", size = 16, margin = margin(r = 15)),
+    axis.text.x = element_text(size = 16, face = "bold", vjust = 0.5),
+    axis.text.y = element_text(size = 13, margin = margin(r = 3)),
+    axis.ticks.y = element_line(color = "black"),
+    plot.background = element_rect(fill = "white"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    panel.grid.major = element_line(color = "grey90"),
+    panel.grid.minor = element_blank()
+  )
+
+ggsave(
+  filename = "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Figure_2raw.pdf",
+  plot = figure_2,
+  width = 8.24,       # en pulgadas
+  height = 9.78,      # en pulgadas
+  units = "in"
+)
+```
+
+
+```{r}
+library(ggplot2)
+
+# Histograma + densidad
+ggplot(datos_filtrados, aes(x = mag2)) +
+  geom_histogram(aes(y = ..density..), bins = 30, fill = "skyblue") +
+  geom_density(color = "red") +
+  ggtitle("Distribución de 'mag'")
+
+# Gráfico Q-Q para normalidad
+qqnorm(datos_combinados$mag, main = "Q-Q Plot de 'mag'")
+qqline(datos_combinados$mag, col = "red")
+```
+
+
+
+```{r}
+# Modelo lineal gereralizado mixto 
+library(glmmTMB)
+
+modelo_gamma3 <- glmmTMB(
+  mag2 ~ type + site + tratamiento + (1 | grupo),
+  data = datos_filtrados,
+  family = Gamma(link = "log")
+)
+
+summary(modelo_gamma3)
+
+sim_res <- simulateResiduals(modelo_gamma3)
+plot(sim_res)  # Debe mostrar residuos sin patrones
+```
+
+Creo que lo que voy a mostrar será
+La rosquilla general
+Después diré que hay mas dimensiones de funcionalidad y procesos que sufrieron en contraste con las de diversidad.
+Sin embargo no hay diferencias en la magnitud, entre variables de diversidad y funcionalidad.
+
+

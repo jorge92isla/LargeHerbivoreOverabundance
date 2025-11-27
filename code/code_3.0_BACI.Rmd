@@ -1,0 +1,4103 @@
+---
+title: "code_3.0_BACI"
+author: "Jorge"
+date: "2025-04-02"
+output: html_document
+---
+
+Quiero que este dataset llame a todos los procesados para hacer los cálculo de BACI
+
+
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(metafor)
+library(gt)
+library(ggplot2)
+library(tidyverse)
+library(ggthemes)
+library(cowplot)
+```
+
+```{r}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+Data loading 
+```{r message=FALSE, include=FALSE}
+ants <-                        read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/ants.csv") OK
+invertebrates <-               read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/invertebrates.csv") OK
+raton <-                       read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/ratones.csv") 
+soil <-                        read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/suelo.csv") OK
+birds <-                       read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/birds.csv")
+herbs <-                       read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/herbs.csv")
+woody <-                       read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/woody.csv") OK
+clorofila <-                   read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/clorofila.csv")
+antocianina <-                 read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/antocianina.csv")
+invertebrates_size_spectrum <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/invertebrates_size_spectrum.csv")
+altura_veg<-                   read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/woody_height.csv")
+composicion<-                  read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/composition.csv") # Already statistically summarized!
+garrapatas<-                   read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/ticks_summary.csv")
+regeneracion <-                read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/recruitment.csv") # Already statistically summarized!
+browsing <-                    read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/cwm_browsig.csv")
+fruitset<-                     read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/fruitset.csv") # Already statistically summarized!
+seedset<-                      read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/seedset.csv") # Already statistically summarized!
+networks <-                    read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/pollination_networks.csv")
+teabags<-                      read.csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/teabags.csv") # Already statistically summarized!
+```
+
+
+# Preparo datasets con SD para BACI
+🐜
+```{r}
+ants<- ants %>% select (c(-habitat, -sampling_unit))
+
+ants_stats <- ants %>%
+  group_by(site, treatment, year) %>%
+  summarise(
+    mean_Riqueza = mean(Riqueza, na.rm = TRUE),
+    sd_Riqueza = sd(Riqueza, na.rm = TRUE),
+    mean_Shannon = mean(Shannon, na.rm = TRUE),
+    sd_Shannon = sd(Shannon, na.rm = TRUE),
+    mean_Simpson = mean(Simpson, na.rm = TRUE),
+    sd_Simpson = sd(Simpson, na.rm = TRUE),
+    mean_Abundancia = mean(Abundancia, na.rm = TRUE),
+    sd_Abundancia = sd(Abundancia, na.rm = TRUE),
+    n_samples = n()  # Número de muestras usadas para calcular la media y la SD
+  )
+ants_stats<-as.data.frame(ants_stats)
+```
+🐞
+```{r}
+#Creo columnas
+invertebrates <- invertebrates %>%
+  separate(sampling_unit_new, into = c( "site", "treatment", "track", "point"), sep = "_")
+
+#Y ahora elimino
+invertebrates<- invertebrates %>% select (c(-track, -point))
+
+invertebrates_stats <- invertebrates %>%
+  group_by(site,treatment, year) %>%
+  summarise(
+    mean_Riqueza = mean(Riqueza, na.rm = TRUE),
+    sd_Riqueza = sd(Riqueza, na.rm = TRUE),
+    mean_Shannon = mean(Shannon, na.rm = TRUE),
+    sd_Shannon = sd(Shannon, na.rm = TRUE),
+    mean_Simpson = mean(Simpson, na.rm = TRUE),
+    sd_Simpson = sd(Simpson, na.rm = TRUE),
+    mean_Abundancia = mean(Abundancia, na.rm = TRUE),
+    sd_Abundancia = sd(Abundancia, na.rm = TRUE),
+    n_samples = n()  # Número de muestras usadas para calcular la media y la SD
+  )
+
+invertebrates_stats<-as.data.frame(invertebrates_stats)
+invertebrates_stats <- invertebrates_stats %>%
+  mutate(treatment = recode(treatment, 
+                            "controlhigh" = "control_high", 
+                            "controlhyper" = "control_hyper"))
+
+head(invertebrates_stats)
+```
+🐀
+```{r}
+#Y ahora elimino
+raton<- raton %>% select (c(-sampling_unit, -level, -sampling_unit_new))
+
+raton_stats <- raton %>%
+  group_by(site, treatment, year) %>%
+  summarise(
+    mean_rodent_abundance = mean(observation, na.rm = TRUE),
+    sd_rodent_abundance = sd(observation, na.rm = TRUE),
+    n_samples = n(),
+    n_non_zero = sum(observation != 0, na.rm = TRUE),
+    prop_non_zero = n_non_zero / n_samples  # Proporción calculada después
+  )
+
+raton_stats<- raton_stats %>% select (-n_non_zero)
+
+raton_stats<-as.data.frame(raton_stats)
+
+raton_stats <- raton_stats %>%
+  mutate(treatment = recode(treatment, 
+                            "controlhigh" = "control_high", 
+                            "controlhyper" = "control_hyper"))
+
+head(raton_stats)
+```
+🌍
+```{r}
+#Y ahora elimino
+soil<- soil %>% select (c(-habitat, -plot, -sampling_unit, -date, -variable_type, -variable_name, -level, -units, -comments, -author_code, -sampling_unit_new))
+
+soil <- soil %>%
+  rename(soil_density = observation)
+
+soil_stats <- soil %>%
+  group_by(site, treatment, year) %>%
+  summarise(
+    mean_soil_density = mean(soil_density, na.rm = TRUE),
+    sd_soil_density = sd(soil_density, na.rm = TRUE),
+    n_samples = n()  # Número de muestras usadas para calcular la media y la SD
+  )
+
+soil_stats<-as.data.frame(soil_stats)
+head(soil_stats)
+```
+🦅
+```{r}
+#Quitar columnas inecesarias
+birds<- birds %>% select (c(-Habitat,-Sitio, -sampling_unit_new, -Transecto))
+
+#Renombrar
+birds <- birds %>%
+  rename(treatment = Tratamiento)
+birds <- birds %>%
+  rename(year = Año)
+
+
+birds_stats <- birds %>%
+  group_by(treatment, year) %>%
+  summarise(
+    mean_Riqueza = mean(Riqueza, na.rm = TRUE),
+    sd_Riqueza = sd(Riqueza, na.rm = TRUE),
+    mean_Shannon = mean(Shannon, na.rm = TRUE),
+    sd_Shannon = sd(Shannon, na.rm = TRUE),
+    mean_Simpson = mean(Simpson, na.rm = TRUE),
+    sd_Simpson = sd(Simpson, na.rm = TRUE),
+    mean_Abundancia = mean(Abundancia, na.rm = TRUE),
+    sd_Abundancia = sd(Abundancia, na.rm = TRUE),
+    n_samples = n()  # Número de muestras usadas para calcular la media y la SD
+  )
+birds_stats<-as.data.frame(birds_stats)
+head(birds_stats)
+```
+🌱
+```{r}
+#Creo columnas
+herbs <- herbs %>%
+  separate(sampling_unit_new, into = c( "site","habitat", "year", "treatment", "track", "point"), sep = "_")
+
+#Y ahora elimino
+herbs<- herbs %>% select (c(-habitat, -track, -point))
+
+herbs_stats <- herbs %>%
+  group_by(site, treatment, year) %>%
+  summarise(
+    mean_Riqueza = mean(Riqueza, na.rm = TRUE),
+    sd_Riqueza = sd(Riqueza, na.rm = TRUE),
+    mean_Shannon = mean(Shannon, na.rm = TRUE),
+    sd_Shannon = sd(Shannon, na.rm = TRUE),
+    mean_Simpson = mean(Simpson, na.rm = TRUE),
+    sd_Simpson = sd(Simpson, na.rm = TRUE),
+    mean_Abundancia = mean(Abundancia, na.rm = TRUE),
+    sd_Abundancia = sd(Abundancia, na.rm = TRUE),
+    n_samples = n()  # Número de muestras usadas para calcular la media y la SD
+  )
+
+herbs_stats <- herbs_stats %>%
+  mutate(treatment = recode(treatment, 
+                            "controlhigh" = "control_high", 
+                            "controlhyper" = "control_hyper"))
+
+herbs_stats<-as.data.frame(herbs_stats)
+head(herbs_stats)
+```
+🪵
+```{r}
+woody <- woody %>%
+  mutate(
+    sampling_unit_new = str_replace_all(sampling_unit_new,
+                                        "control_high", "controlhigh"),
+    sampling_unit_new = str_replace_all(sampling_unit_new,
+                                        "control_hyper", "controlhyper")
+  )
+#Creo columnas
+woody <- woody %>% separate(sampling_unit_new, into = c("site", "habitat", "treatment", "track"), sep = "_")
+
+#Y ahora elimino
+woody<- woody %>% select (c(-habitat, -habitat, -track))
+
+
+woody_stats <- woody %>%
+  group_by(site, treatment, year) %>%
+  summarise(
+    mean_Riqueza = mean(Riqueza, na.rm = TRUE),
+    sd_Riqueza = sd(Riqueza, na.rm = TRUE),
+    mean_Shannon = mean(Shannon, na.rm = TRUE),
+    sd_Shannon = sd(Shannon, na.rm = TRUE),
+    mean_Simpson = mean(Simpson, na.rm = TRUE),
+    sd_Simpson = sd(Simpson, na.rm = TRUE),
+    mean_Abundancia = mean(Abundancia, na.rm = TRUE),
+    sd_Abundancia = sd(Abundancia, na.rm = TRUE),
+    n_samples = n()  # Número de muestras usadas para calcular la media y la SD
+  )
+woody_stats<-as.data.frame(woody_stats)
+
+woody_stats <- woody_stats %>%
+  mutate(treatment = recode(treatment, 
+                            "controlhigh" = "control_high", 
+                            "controlhyper" = "control_hyper"))
+(woody_stats)
+```
+🗜️🌳
+```{r}
+#-------------------------------------------------------------------------------
+# 1. Limpieza y preparación de datos
+datos_plantas <- clorofila %>%
+  filter(!is.na(valor)) %>%  # Eliminar valores faltantes
+  select(site, habitat, treatment, year, variable_name, level, valor, author_code) %>%
+  mutate(
+    year = as.character(year),  # Convertir a carácter para el pivot
+    planta_id = paste(site, habitat, author_code, sep = "_")  # ID único para cada planta
+  )
+
+# 2. Calcular diferencias entre años
+clorofila <- datos_plantas %>%
+  filter(year %in% c("2021", "2022")) %>%  # Solo estos años
+  pivot_wider(
+    names_from = year,
+    values_from = valor,
+    names_prefix = "valor_"
+  ) %>%
+  mutate(
+    diferencia = valor_2022 - valor_2021,
+    cambio = case_when(
+      diferencia > 0 ~ "Aumento",
+      diferencia < 0 ~ "Disminución",
+      TRUE ~ "Sin cambio"
+    )
+  ) %>%
+  arrange(desc(abs(diferencia)))  # Ordenar por magnitud de cambio
+
+clorofila<-clorofila %>% rename(clorofila = diferencia)
+
+clorofila$clorofila <- clorofila$clorofila - 8.731 # Voy a hacer esto para asegurarme de que todos los valores son negativos, sino no puedo hacer el logaritmo para el response ratio.
+
+#Y ahora elimino
+clorofila<- clorofila %>% select (c(-habitat,-variable_name, -level, -author_code,-planta_id,-valor_2021, -valor_2022,-cambio))
+
+clorofila_stats <- clorofila %>%
+  group_by(site, treatment) %>%
+  summarise(
+    mean_clorofila = mean(clorofila, na.rm = TRUE),
+    sd_clorofila = sd(clorofila, na.rm = TRUE),
+    n_samples = n())
+
+
+clorofila_stats<-as.data.frame(clorofila_stats)
+#-------------------------------------------------------------------------------
+# Antocianina
+antocianina <- antocianina %>% filter(variable_name == "antocianina")
+
+# 1. Limpieza y preparación de datos
+datos_plantas <- antocianina %>%
+  filter(!is.na(valor)) %>%  # Eliminar valores faltantes
+  select(site, habitat, treatment, year, variable_name, level, valor, author_code) %>%
+  mutate(
+    year = as.character(year),  # Convertir a carácter para el pivot
+    planta_id = paste(site, habitat, author_code, sep = "_")  # ID único para cada planta
+  )
+
+# 2. Calcular diferencias entre años
+antocianina <- datos_plantas %>%
+  filter(year %in% c("2021", "2022")) %>%  # Solo estos años
+  pivot_wider(
+    names_from = year,
+    values_from = valor,
+    names_prefix = "valor_"
+  ) %>%
+  mutate(
+    diferencia = valor_2022 - valor_2021,
+    cambio = case_when(
+      diferencia > 0 ~ "Aumento",
+      diferencia < 0 ~ "Disminución",
+      TRUE ~ "Sin cambio"
+    )
+  ) %>%
+  arrange(desc(abs(diferencia)))  # Ordenar por magnitud de cambio
+
+antocianina<-antocianina %>% rename(antocianina = diferencia)
+
+#Y ahora elimino
+antocianina<- antocianina %>% select (c(-habitat,-variable_name, -level, -author_code,-planta_id,-valor_2021, -valor_2022,-cambio))
+
+antocianina_stats <- antocianina %>%
+  group_by(site, treatment) %>%
+  summarise(
+    mean_antocianina = mean(antocianina, na.rm = TRUE),
+    sd_antocianina = sd(antocianina, na.rm = TRUE),
+    n_samples = n())
+
+
+
+
+library(dplyr)
+
+# Convertir antocianina_stats a data.frame si es necesario (por ser tibble)
+antocianina_stats <- as.data.frame(antocianina_stats)
+
+# Combinar los datasets
+datos_combinados <- full_join(clorofila_stats, antocianina_stats, 
+                             by = c("site", "treatment", "n_samples"))
+
+# Reordenar las columnas como solicitaste
+datos_fisiología <- datos_combinados %>%
+  select(site, treatment, 
+         mean_clorofila, sd_clorofila,
+         mean_antocianina, sd_antocianina,
+         n_samples)
+
+# Resultado
+head(datos_fisiología)
+```
+🤯🦗
+```{r}
+invertebrates_size_spectrum$level <- factor(invertebrates_size_spectrum$level)
+levels(invertebrates_size_spectrum$level)
+str(invertebrates_size_spectrum)
+
+# Voy a incluir la columna que sea el sumatorio del peso de todos los invertebrados que han caido en un pitfall y la voy a llamar invertebrate_biomass 
+# 1. Filtramos los registros con individual_weight y sumamos por author_code
+total_individual_weight <- invertebrates_size_spectrum %>%
+  filter(level == "individual_weight") %>%
+  group_by(author_code) %>%
+  summarise(
+    observation = sum(observation, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# 2. Tomamos una fila representativa por author_code para conservar los metadatos
+meta_info <- invertebrates_size_spectrum %>%
+  filter(level == "individual_weight") %>%
+  select(-observation, -level) %>%
+  distinct(author_code, .keep_all = TRUE)
+
+# 3. Unimos los datos de suma con los metadatos
+new_level_rows <- meta_info %>%
+  inner_join(total_individual_weight, by = "author_code") %>%
+  mutate(level = "invertebrate_biomass")
+
+# 4. Añadimos estas nuevas filas al dataset original
+invertebrates_size_spectrum <- bind_rows(invertebrates_size_spectrum, new_level_rows)
+
+# 5. Elimino las filas que tengan individual_weight, ya que la variable a partir de aquí es "invertebrate_biomass"
+invertebrates_size_spectrum <- invertebrates_size_spectrum %>%
+  filter(level != "individual_weight")
+
+#CALCULO AQUÍ LOS ESTADÍSTICOS AHORA
+
+size_spectrum_stats <- invertebrates_size_spectrum %>%
+
+  
+  # Agrupar por site, treatment, year y level (tipo de variable)
+  group_by(site, treatment, year, level) %>%
+  
+  # Calcular media, sd, y n (ignorando NAs)
+  summarise(
+    mean = mean(observation, na.rm = TRUE),
+    sd = sd(observation, na.rm = TRUE),
+    n = sum(!is.na(observation)),
+    .groups = "drop"
+  ) %>%
+  
+  # Pivotear más ancho para que cada variable tenga sus columnas
+  pivot_wider(
+    names_from = level,
+    values_from = c(mean, sd, n),
+    names_glue = "{.value}_{level}"
+  )
+```
+🌳👆/🌳🌱🪵🌍
+```{r}
+altura_stats <- altura_veg %>%
+  group_by(site, treatment, year) %>%
+  summarise(
+    media_altura = mean(height_observation, na.rm = TRUE),
+    sd_altura = sd(height_observation, na.rm = TRUE),
+    n_muestras = sum(!is.na(height_observation)),
+    .groups = "drop"
+  )
+
+altura_stats <- altura_stats %>%
+  rename(
+    mean_altura = media_altura,
+    sd_altura = sd_altura,
+    n_altura = n_muestras
+  )
+
+# Ver el resumen
+print(altura_stats)
+
+composicion <- composicion %>%
+  rename(
+    sd_Bare_ground = sd_value_Bare_ground,
+    sd_Herbs= sd_value_Herbs,
+    sd_Woody_sp= sd_value_Woody_sp,
+   # sd_dead_material= sd_value_dead_material,
+   n_Bare_ground = n_samples_Bare_ground,
+   n_Herbs = n_samples_Herbs,
+   n_Woody_sp = n_samples_Woody_sp,
+ #  n_dead_material = n_samples_dead_material
+  )
+# Combinar composicion y altura_stats usando left_join
+composicion_combined <- composicion %>%
+  left_join(altura_stats, by = c("site", "treatment", "year"))
+
+# Ver el resultado
+#print(composicion_combined)
+composicion_combined<-as.data.frame(composicion_combined)
+```
+🪳
+```{r}
+garrapatas_summary <- garrapatas %>%
+  group_by(treatment, year) %>%
+  summarise(
+    mean_garrapatas = mean(observation, na.rm = TRUE),
+    sd_garrapatas = sd(observation, na.rm = TRUE),
+    n_garrapatas = sum(!is.na(observation)),
+    .groups = "drop"
+  )
+
+garrapatas_summary
+
+garrapatas_summary <- garrapatas_summary %>%
+  mutate(
+    mean_garrapatas = ifelse(treatment == "control_high" & year == 2022, 0.01, mean_garrapatas),
+    sd_garrapatas = ifelse(treatment == "control_high" & year == 2022, 0.009, sd_garrapatas)
+  )
+
+```
+🌳🦌
+```{r}
+browsing_summary <- browsing %>%
+  group_by(site, treatment, year) %>%
+  summarise(
+    mean_browsing = mean(CWM_browsing, na.rm = TRUE),
+    sd_browsing = sd(CWM_browsing, na.rm = TRUE),
+    n_browsing = sum(!is.na(CWM_browsing)),
+    .groups = "drop"
+  ) %>%
+  arrange(site, year, treatment)
+
+# Imputo valores muy chicos al control, porque con un 0 el logaritmo no me sale.
+
+browsing_summary <- browsing_summary %>%
+  mutate(
+    mean_browsing = ifelse(mean_browsing == 0, 0.01, mean_browsing),
+    sd_browsing = ifelse(sd_browsing == 0, 0.001, sd_browsing)
+  )
+
+```
+🍋🍊🍎 
+```{r}
+# Imputo valores muy chicos al populifolius del 22, que se lo han comido mucho, tengo que imputar porque con un 0 el logaritmo no me sale. No es un error imputar ya que en las poquitas que han quedado muestreables, el % de flores que se han transformado en frutos es 0. 
+
+fruitset <- fruitset %>%
+  mutate(
+    mean_fs_pop_pol = ifelse(mean_fs_pop_pol == 0, 0.01, mean_fs_pop_pol),
+    mean_fs_pop_total = ifelse(mean_fs_pop_total == 0, 0.01, mean_fs_pop_total),
+    sd_fs_pop_pol = ifelse(sd_fs_pop_pol == 0, 0.001, sd_fs_pop_pol),
+    sd_fs_pop_total = ifelse(sd_fs_pop_total == 0, 0.001, sd_fs_pop_total)
+  )
+
+
+# Aunque no tengo realmente claro si quiero andar imputando o no, voy a combinar los datos de fruit/set y seed/set en un único dataset
+head(seedset)
+fruitset_seedset_stats <- fruitset %>% 
+  left_join(seedset, by = c("year", "treatment"))
+
+```
+🌼🐝
+```{r}
+networks
+#Creo columnas
+networks <- networks %>%
+  separate(sampling_unit_new, into = c("treatment", "track", "año"), sep = "_")
+
+#Y ahora elimino
+networks<- networks %>% select (c(-track, -año, -sampling_unit))
+
+networks_stats <- networks %>%
+  group_by(treatment, year) %>%
+  summarise(
+    mean_connectance = mean(connectance, na.rm = TRUE),
+    sd_connectance = sd(connectance, na.rm = TRUE),
+    mean_weighted_NODF = mean(weighted_NODF, na.rm = TRUE),
+    sd_weighted_NODF = sd(weighted_NODF, na.rm = TRUE),
+    mean_interaction_evenness = mean(interaction_evenness, na.rm = TRUE),
+    sd_interaction_evenness = sd(interaction_evenness, na.rm = TRUE),
+    mean_specificity_H2 = mean(specificity_H2, na.rm = TRUE),
+    sd_specificity_H2 = sd(specificity_H2, na.rm = TRUE),
+    mean_modularity = mean(modularity, na.rm = TRUE),
+    sd_modularity = sd(modularity, na.rm = TRUE),
+    mean_riqueza_interacciones = mean(riqueza_interacciones, na.rm = TRUE),
+    sd_riqueza_interacciones = sd(riqueza_interacciones, na.rm = TRUE),
+    mean_especies_polinizadores = mean(especies_polinizadores, na.rm = TRUE),
+    sd_especies_polinizadores = sd(especies_polinizadores, na.rm = TRUE),
+    mean_especies_plantas = mean(especies_plantas, na.rm = TRUE),
+    sd_especies_plantas = sd(especies_plantas, na.rm = TRUE),
+    n_samples = n()  # Número de muestras usadas para calcular la media y la SD
+  )
+
+networks_stats<-as.data.frame(networks_stats)
+head(networks_stats)
+
+#Vamos a añadir una w delante de connectance, ya que estámos trabajando con weighted connectance. 
+library(stringr)
+
+# Modificar los nombres de las columnas
+networks_stats <- networks_stats %>%
+  rename_with(~ str_replace(., "connectance", "Wconnectance"))
+
+# Ver los resultados
+head(networks_stats)
+
+```
+
+# Reviso estructuras de datasets
+```{r}
+#str(ants_stats) # Métricas de riqueza, diversidad y abundancia para hormigas en toledo y valencia
+#str(invertebrates_stats) # Métricas de riqueza, diversidad y abundancia para invertebrados terrestres en toledo y valencia
+#str(raton_stats) # Métricas de abundancia (rodent_abundance) y frecuencia de ocurrencia (prop_non_zero) de roedores para toledo y valencia
+#str(soil_stats) # Métricas de densidad de suelo para toledo y valencia
+#str(birds_stats)  # Métricas de riqueza, diversidad y abundancia para aves en toledo
+#str(herbs_stats) # Métricas de riqueza, diversidad y abundancia para herbáceas en toledo
+#str(networks_stats) # Métricas de polinización (riqueza_interacciones, especies_polinizadores, especies_plantas) y redes de polinización (Wconnectance, weighted_NODF, interaction_evenness, specificity_H2, modularity) #para toledo
+#str(woody_stats) # Métricas de riqueza, diversidad y abundancia para leñosas en toledo
+#str(datos_fisiología)   # Variación entre 2022 y 2021 en los niveles de clorofila y antocianina  de las hojas nuevas de Q.ilex en Toledo y Valencia
+#str(size_spectrum_stats)   # Métricas de 2022 y 2021 en los niveles de Kc, carrying_capacity, invertebrate biomass, lambda y trophic_efficiency Toledo y Valencia
+#str(composicion_combined) # Métricas de altura y cobertura en tracks de (woody, herbs, bare_ground, dead material) para Toledo EN 2022 y 2021
+#str(garrapatas_summary) # Densidad de garrapatas en el ambiente para 2021 y 2022 en Valencia
+#str(regeneracion) # Abundancia, diversidad simpsony riqueza de reclutas en valencia y toledo para 2021 y 2022. 
+#str(browsing_summary) # Community Weighted Mean de escala numérica de herbiboría para 2021 y 2022 en Toledo
+#str(fruitset) # fruit_set para ladanifer en toledo, lo tengo tanto excluyendo el efecto de los herbívoros, y uniendo pol + herbivoría.
+#str(teabags) # Degradación y estabilización de la materia orgánica en 2021 y 2022 para Toledo y Valencia
+```
+
+# Ejecuto BACI
+BACI HORMIGAS
+```{r}
+summary_stats <- ants_stats
+metricas <- c("Riqueza","Simpson", "Abundancia")
+results <- data.frame()
+
+# Toledo
+for (metrica in metricas) {
+  toledo <- summary_stats %>% filter(site == "toledo")
+  
+  high <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "high"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "high"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo$n_samples[toledo$treatment == "high"],
+    n2i = toledo$n_samples[toledo$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Toledo",
+      Tratamiento = "high",
+      Variable = metrica,
+      Year = toledo$year[toledo$treatment == "high"],
+      Control = "control"
+    )
+  
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "hyper"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "hyper"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo$n_samples[toledo$treatment == "hyper"],
+    n2i = toledo$n_samples[toledo$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Toledo",
+      Tratamiento = "hyper",
+      Variable = metrica,
+      Year = toledo$year[toledo$treatment == "hyper"],
+      Control = "control"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+# Valencia
+for (metrica in metricas) {
+  valencia <- summary_stats %>% filter(site == "valencia")
+  
+  high_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "high"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_high"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "high"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_high"],
+    n1i = valencia$n_samples[valencia$treatment == "high"],
+    n2i = valencia$n_samples[valencia$treatment == "control_high"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Valencia",
+      Tratamiento = "high",
+      Variable = metrica,
+      Year = valencia$year[valencia$treatment == "high"],
+      Control = "control_high"
+    )
+  
+  hyper_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "hyper"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_hyper"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "hyper"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_hyper"],
+    n1i = valencia$n_samples[valencia$treatment == "hyper"],
+    n2i = valencia$n_samples[valencia$treatment == "control_hyper"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Valencia",
+      Tratamiento = "hyper",
+      Variable = metrica,
+      Year = valencia$year[valencia$treatment == "hyper"],
+      Control = "control_hyper"
+    )
+  
+  results <- bind_rows(results, high_val, hyper_val)
+}
+
+# Cálculo de IC y transformación exponencial
+results <- results %>%
+  rename(lnRR = yi, var_lnRR = vi) %>%
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Site, "-", Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# Gráfico lnRR
+
+# Reasignar etiquetas de las variables
+results$Variable <- factor(
+  results$Variable,
+  levels = c("Abundancia", "Riqueza", "Simpson"),
+  labels = c("Abundance", "Richness", "Diversity")
+)
+
+# Reasignar etiquetas de los grupos en la leyenda
+results$Grupo <- factor(
+  results$Grupo,
+  levels = c(
+    "Toledo - high vs control",
+    "Toledo - hyper vs control",
+    "Valencia - high vs control_high",
+    "Valencia - hyper vs control_hyper"
+  ),
+  labels = c(
+    "Quintos de Mora - high vs control",
+    "Quintos de Mora - hyper vs control",
+    "Muela de Cortes - high vs control",
+    "Muela de Cortes - hyper vs control"
+  )
+)
+
+plot_ants_lnRR <- ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "free_y", ncol = 1) +
+  labs(
+    title = "Ants - Treatment Effect Size = lnRR ± IC 95%",
+    x = "Time",
+    y = "lnRR",
+    color = NULL
+  ) +
+  scale_x_discrete(labels = c("2021" = "Before", "2022" = "After")) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_ants_lnRR.png",
+plot = plot_ants_lnRR,
+width = 5, height = 8, units = "in", dpi = 300)
+
+# Cálculo de cambios BACI
+baci_data <- results %>%
+  select(Site, Tratamiento, Variable, Year, lnRR, var_lnRR) %>%
+  pivot_wider(names_from = Year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    exp_Delta_lnRR = exp(Delta_lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_Delta_lnRR - 1) * 100, 1),
+    Diferencia_Significativa = ifelse(CI_lower > 0 | CI_upper < 0, "Sí", "No")
+  )
+
+# Gráfico de cambio entre años
+ggplot(baci_data, aes(x = Tratamiento, y = Delta_lnRR, color = Site)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "fixed") +
+  # ylim(0.4, 4) +
+  labs(
+    title = "Hormigas - Cambio en el efecto entre años (ΔlnRR)",
+    x = "Tratamiento",
+    y = "Cambio relativo (2022 vs 2021)"
+  ) +
+  theme_minimal()
+
+# Tabla resumen
+tabla_final <- baci_data %>%
+  select(Site, Tratamiento, Variable,
+         lnRR_2021, lnRR_2022, Delta_lnRR,
+         CI_lower, CI_upper,
+         exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+         Porcentaje_Cambio, Diferencia_Significativa) %>%
+  gt::gt() %>%
+  tab_header(
+    title = "Hormigas - Resultados del Análisis de lnRR entre Años",
+    subtitle = "Transformación exponencial y cambio porcentual (2022 vs 2021)"
+  ) %>%
+  cols_label(
+    Site = "Sitio",
+    Tratamiento = "Tratamiento",
+    Variable = "Métrica",
+    lnRR_2021 = "lnRR 2021",
+    lnRR_2022 = "lnRR 2022",
+    Delta_lnRR = "ΔlnRR",
+    CI_lower = "IC Inferior",
+    CI_upper = "IC Superior",
+    exp_Delta_lnRR = "exp(ΔlnRR)",
+    exp_CI_lower = "exp(IC Inf.)",
+    exp_CI_upper = "exp(IC Sup.)",
+    Porcentaje_Cambio = "% Cambio Relativo",
+    Diferencia_Significativa = "¿Significativo?"
+  ) %>%
+  fmt_number(columns = where(is.numeric), decimals = 3) %>%
+  data_color(
+    columns = Diferencia_Significativa,
+    colors = scales::col_factor(
+      palette = c("Sí" = "lightblue", "No" = "lightgray"),
+      domain = c("Sí", "No")
+    )
+  )
+
+tabla_final
+
+# Guardar la tabla final como CSV
+ants_baci_results <- baci_data %>%
+  select(
+    Site, Tratamiento, Variable,
+    lnRR_2021, lnRR_2022, Delta_lnRR, Delta_var,
+    CI_lower, CI_upper,
+    exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio, Diferencia_Significativa
+  )
+
+# Crear la ruta completa (asegúrate de que el directorio existe)
+ruta_csv <- "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/ants_baci_results.csv"
+
+# Guardar el archivo
+write.csv(ants_baci_results, file = ruta_csv, row.names = FALSE)
+
+```
+BACI INVERTEBRATES
+```{r}
+# --- Datos y cálculos originales (modificados para incluir exp(lnRR)) ---
+summary_stats <- invertebrates_stats
+metricas <- c("Riqueza", "Simpson", "Abundancia")
+results <- data.frame()
+
+# 1. Análisis para Toledo
+for (metrica in metricas) {
+  toledo <- summary_stats %>% filter(site == "toledo")
+  
+  high <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "high"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "high"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo$n_samples[toledo$treatment == "high"],
+    n2i = toledo$n_samples[toledo$treatment == "control"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Toledo", Tratamiento = "high", Variable = metrica,
+      Year = toledo$year[toledo$treatment == "high"], Control = "control"
+    )
+  
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "hyper"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "hyper"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo$n_samples[toledo$treatment == "hyper"],
+    n2i = toledo$n_samples[toledo$treatment == "control"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Toledo", Tratamiento = "hyper", Variable = metrica,
+      Year = toledo$year[toledo$treatment == "hyper"], Control = "control"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+# 2. Análisis para Valencia
+for (metrica in metricas) {
+  valencia <- summary_stats %>% filter(site == "valencia")
+  
+  high_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "high"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_high"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "high"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_high"],
+    n1i = valencia$n_samples[valencia$treatment == "high"],
+    n2i = valencia$n_samples[valencia$treatment == "control_high"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Valencia", Tratamiento = "high", Variable = metrica,
+      Year = valencia$year[valencia$treatment == "high"], Control = "control_high"
+    )
+  
+  hyper_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "hyper"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_hyper"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "hyper"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_hyper"],
+    n1i = valencia$n_samples[valencia$treatment == "hyper"],
+    n2i = valencia$n_samples[valencia$treatment == "control_hyper"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Valencia", Tratamiento = "hyper", Variable = metrica,
+      Year = valencia$year[valencia$treatment == "hyper"], Control = "control_hyper"
+    )
+  
+  results <- bind_rows(results, high_val, hyper_val)
+}
+
+# 3. Transformar a exp(lnRR) y calcular IC
+results <- results %>% 
+  rename(lnRR = yi, var_lnRR = vi) %>% 
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Site, "-", Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# Gráfico lnRR
+
+# Reasignar etiquetas de las variables
+results$Variable <- factor(
+  results$Variable,
+  levels = c("Abundancia", "Riqueza", "Simpson"),
+  labels = c("Abundance", "Richness", "Diversity")
+)
+
+# Reasignar etiquetas de los grupos en la leyenda
+results$Grupo <- factor(
+  results$Grupo,
+  levels = c(
+    "Toledo - high vs control",
+    "Toledo - hyper vs control",
+    "Valencia - high vs control_high",
+    "Valencia - hyper vs control_hyper"
+  ),
+  labels = c(
+    "Quintos de Mora - high vs control",
+    "Quintos de Mora - hyper vs control",
+    "Muela de Cortes - high vs control",
+    "Muela de Cortes - hyper vs control"
+  )
+)
+
+plot_invertebrates_lnRR <- ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "free_y", ncol = 1) +
+  labs(
+    title = "Epigeic Invertebrates - Treatment Effect Size = lnRR ± IC 95%",
+    x = "Time",
+    y = "lnRR",
+    color = NULL
+  ) +
+  scale_x_discrete(labels = c("2021" = "Before", "2022" = "After")) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_invertebrates_lnRR.png",
+plot = plot_invertebrates_lnRR,
+width = 5, height = 8, units = "in", dpi = 300)
+
+# 
+baci_data <- results %>%
+  select(Site, Tratamiento, Variable, Year, lnRR, var_lnRR) %>%
+  pivot_wider(names_from = Year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    exp_Delta_lnRR = exp(Delta_lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_Delta_lnRR - 1) * 100, 1),
+    Diferencia_Significativa = ifelse(CI_lower > 0 | CI_upper < 0, "Sí", "No")
+  )
+# Gráfico 2: Análisis BACI (2022 vs 2021)
+ggplot(baci_data, aes(x = Tratamiento, y = Delta_lnRR, color = Site)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "fixed") +
+  # ylim(0.4, 4) +
+  labs(
+    title = "Epigeic invertebreates - Cambio en el efecto entre años (ΔlnRR)",
+    x = "Tratamiento",
+    y = "Cambio relativo (2022 vs 2021)"
+  ) +
+  theme_minimal()
+
+# --- Tabla final y exportación ---
+invertebrates_baci_results <- baci_data %>%
+  select(
+    Site, Tratamiento, Variable,
+    lnRR_2021, lnRR_2022, Delta_lnRR, Delta_var,
+    exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio, Diferencia_Significativa
+  )
+
+write.csv(invertebrates_baci_results,
+          "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/invertebrates_baci_results.csv",
+          row.names = FALSE)
+
+
+tabla_final <- invertebrates_baci_results %>%
+  gt::gt() %>%
+  gt::tab_header(
+   title = "Resultados invertebrados del análisis BACI (exp(lnRR))",
+  subtitle = "Comparación de tratamientos entre Toledo y Valencia"
+  ) %>%
+  fmt_number(columns = c(lnRR_2021, lnRR_2022, Delta_lnRR), decimals = 3) %>%
+  fmt_number(columns = c(exp_Delta_lnRR, exp_CI_lower, exp_CI_upper), decimals = 2) %>%
+  data_color(
+    columns = Diferencia_Significativa,
+    colors = scales::col_factor(palette = c("Sí" = "#15607A", "No" = "lightgray"), domain = c("Sí", "No")))
+tabla_final
+```
+BACI RODENTS
+```{r}
+# 1. Cargar datos y preparar análisis ----
+summary_stats <- raton_stats
+metricas <- c("rodent_abundance")
+results <- data.frame()
+
+# 2. Análisis para Toledo ----
+for (metrica in metricas) {
+  toledo <- summary_stats %>% filter(site == "toledo")
+  
+  # HIGH vs CONTROL
+  high <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "high"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "high"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo$n_samples[toledo$treatment == "high"],
+    n2i = toledo$n_samples[toledo$treatment == "control"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Toledo", Tratamiento = "high", Variable = metrica,
+      Year = toledo$year[toledo$treatment == "high"], Control = "control"
+    )
+  
+  # HYPER vs CONTROL
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "hyper"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "hyper"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo$n_samples[toledo$treatment == "hyper"],
+    n2i = toledo$n_samples[toledo$treatment == "control"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Toledo", Tratamiento = "hyper", Variable = metrica,
+      Year = toledo$year[toledo$treatment == "hyper"], Control = "control"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+# 3. Análisis para Valencia ----
+for (metrica in metricas) {
+  valencia <- summary_stats %>% filter(site == "valencia")
+  
+  # HIGH vs CONTROL_HIGH
+  high_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "high"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_high"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "high"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_high"],
+    n1i = valencia$n_samples[valencia$treatment == "high"],
+    n2i = valencia$n_samples[valencia$treatment == "control_high"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Valencia", Tratamiento = "high", Variable = metrica,
+      Year = valencia$year[valencia$treatment == "high"], Control = "control_high"
+    )
+  
+  # HYPER vs CONTROL_HYPER
+  hyper_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "hyper"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_hyper"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "hyper"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_hyper"],
+    n1i = valencia$n_samples[valencia$treatment == "hyper"],
+    n2i = valencia$n_samples[valencia$treatment == "control_hyper"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Valencia", Tratamiento = "hyper", Variable = metrica,
+      Year = valencia$year[valencia$treatment == "hyper"], Control = "control_hyper"
+    )
+  
+  results <- bind_rows(results, high_val, hyper_val)
+}
+
+# 4. Transformar a exp(lnRR) y calcular IC ----
+results <- results %>% 
+  rename(lnRR = yi, var_lnRR = vi) %>% 
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Site, "-", Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# Gráfico lnRR
+
+# Reasignar etiquetas de las variables
+results$Variable <- factor(
+  results$Variable,
+  levels = c("Abundancia", "Riqueza", "Simpson"),
+  labels = c("Abundance", "Richness", "Diversity")
+)
+
+# Reasignar etiquetas de los grupos en la leyenda
+results$Grupo <- factor(
+  results$Grupo,
+  levels = c(
+    "Toledo - high vs control",
+    "Toledo - hyper vs control",
+    "Valencia - high vs control_high",
+    "Valencia - hyper vs control_hyper"
+  ),
+  labels = c(
+    "Quintos de Mora - high vs control",
+    "Quintos de Mora - hyper vs control",
+    "Muela de Cortes - high vs control",
+    "Muela de Cortes - hyper vs control"
+  )
+)
+
+plot_rodents_lnRR <- ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    title = "Small Mammals - Treatment Effect Size = lnRR ± IC 95%",
+    subtitle = "Abundance",
+    x = "Time",
+    y = "lnRR",
+    color = NULL
+  ) +
+  scale_x_discrete(labels = c("2021" = "Before", "2022" = "After")) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_rodents_lnRR.png",
+plot = plot_rodents_lnRR,
+width = 6, height = 8, units = "in", dpi = 300)
+
+
+# 6. Análisis BACI con exp(ΔlnRR) ----
+baci_data <- results %>%
+  select(Site, Tratamiento, Variable, Year, lnRR, var_lnRR) %>%
+  pivot_wider(names_from = Year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    exp_Delta_lnRR = exp(Delta_lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_Delta_lnRR - 1) * 100, 1),
+    Diferencia_Significativa = ifelse(CI_lower > 0 | CI_upper < 0, "Sí", "No")
+  )
+
+# 7. Gráfico BACI con exp(ΔlnRR) ----
+ggplot(baci_data, aes(x = Tratamiento, y = exp_Delta_lnRR, color = Site)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = exp_CI_lower, ymax = exp_CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "fixed") +
+  labs(
+    title = "Roedores - Cambio en el efecto entre años (exp(ΔlnRR))",
+    x = "Tratamiento",
+    y = "Cambio relativo (2022 vs 2021)"
+  ) +
+  theme_minimal()
+
+# 8. Tabla final y exportación ----
+raton_baci_results <- baci_data %>%
+  select(
+    Site, Tratamiento, Variable,
+    lnRR_2021, lnRR_2022, Delta_lnRR, Delta_var,
+    exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio, Diferencia_Significativa
+  )
+
+# Guardar como CSV
+write.csv(raton_baci_results,
+          "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/raton_baci_results.csv",
+          row.names = FALSE)
+
+tabla_final <- raton_baci_results %>%
+  gt::gt() %>%
+  gt::tab_header(
+    title = "Resultados invertebrados del análisis BACI (exp(lnRR))",
+    subtitle = "Comparación de tratamientos entre Toledo y Valencia"
+  ) %>%
+  fmt_number(columns = c(lnRR_2021, lnRR_2022, Delta_lnRR), decimals = 3) %>%
+  fmt_number(columns = c(exp_Delta_lnRR, exp_CI_lower, exp_CI_upper), decimals = 2) %>%
+  data_color(
+    columns = Diferencia_Significativa,
+    colors = scales::col_factor(palette = c("Sí" = "#15607A", "No" = "lightgray"), domain = c("Sí", "No")))
+tabla_final
+```
+BACI SOIL
+```{r}
+# 1. Cargar datos y preparar análisis ----
+summary_stats <- soil_stats
+metricas <- c("soil_density")
+results <- data.frame()
+
+# 2. Análisis para Toledo ----
+for (metrica in metricas) {
+  toledo <- summary_stats %>% filter(site == "toledo")
+  
+  # HIGH vs CONTROL
+  high <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "high"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "high"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo$n_samples[toledo$treatment == "high"],
+    n2i = toledo$n_samples[toledo$treatment == "control"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Toledo", Tratamiento = "high", Variable = metrica,
+      Year = toledo$year[toledo$treatment == "high"], Control = "control"
+    )
+  
+  # HYPER vs CONTROL
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "hyper"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "hyper"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo$n_samples[toledo$treatment == "hyper"],
+    n2i = toledo$n_samples[toledo$treatment == "control"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Toledo", Tratamiento = "hyper", Variable = metrica,
+      Year = toledo$year[toledo$treatment == "hyper"], Control = "control"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+# 3. Análisis para Valencia ----
+for (metrica in metricas) {
+  valencia <- summary_stats %>% filter(site == "valencia")
+  
+  # HIGH vs CONTROL_HIGH
+  high_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "high"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_high"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "high"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_high"],
+    n1i = valencia$n_samples[valencia$treatment == "high"],
+    n2i = valencia$n_samples[valencia$treatment == "control_high"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Valencia", Tratamiento = "high", Variable = metrica,
+      Year = valencia$year[valencia$treatment == "high"], Control = "control_high"
+    )
+  
+  # HYPER vs CONTROL_HYPER
+  hyper_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "hyper"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_hyper"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "hyper"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_hyper"],
+    n1i = valencia$n_samples[valencia$treatment == "hyper"],
+    n2i = valencia$n_samples[valencia$treatment == "control_hyper"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Valencia", Tratamiento = "hyper", Variable = metrica,
+      Year = valencia$year[valencia$treatment == "hyper"], Control = "control_hyper"
+    )
+  
+  results <- bind_rows(results, high_val, hyper_val)
+}
+
+# 4. Transformar a exp(lnRR) y calcular IC ----
+results <- results %>% 
+  rename(lnRR = yi, var_lnRR = vi) %>% 
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Site, "-", Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# Gráfico lnRR
+
+# Reasignar etiquetas de las variables
+results$Variable <- factor(
+  results$Variable,
+  levels = c("Abundancia", "Riqueza", "Simpson"),
+  labels = c("Abundance", "Richness", "Diversity")
+)
+
+# Reasignar etiquetas de los grupos en la leyenda
+results$Grupo <- factor(
+  results$Grupo,
+  levels = c(
+    "Toledo - high vs control",
+    "Toledo - hyper vs control",
+    "Valencia - high vs control_high",
+    "Valencia - hyper vs control_hyper"
+  ),
+  labels = c(
+    "Quintos de Mora - high vs control",
+    "Quintos de Mora - hyper vs control",
+    "Muela de Cortes - high vs control",
+    "Muela de Cortes - hyper vs control"
+  )
+)
+
+plot_soil_lnRR <- ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    title = "Soil Density - Treatment Effect Size = lnRR ± IC 95%",
+    subtitle = "Superficial Apparent Density",
+    x = "Time",
+    y = "lnRR",
+    color = NULL
+  ) +
+  scale_x_discrete(labels = c("2021" = "Before", "2022" = "After")) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_soil_lnRR.png",
+plot = plot_soil_lnRR,
+width = 6, height = 8, units = "in", dpi = 300)
+
+# 6. Análisis BACI con exp(ΔlnRR) ----
+baci_data <- results %>%
+  select(Site, Tratamiento, Variable, Year, lnRR, var_lnRR) %>%
+  pivot_wider(names_from = Year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    exp_Delta_lnRR = exp(Delta_lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_Delta_lnRR - 1) * 100, 1),
+    Diferencia_Significativa = ifelse(CI_lower > 0 | CI_upper < 0, "Sí", "No")
+  )
+
+# 7. Gráfico BACI con exp(ΔlnRR) ----
+ggplot(baci_data, aes(x = Tratamiento, y = exp_Delta_lnRR, color = Site)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = exp_CI_lower, ymax = exp_CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "fixed") +
+  labs(
+    title = "Suelo - Cambio en el efecto entre años (exp(ΔlnRR))",
+    x = "Tratamiento",
+    y = "Cambio relativo (2022 vs 2021)"
+  ) +
+  theme_minimal()
+
+# 8. Tabla final y exportación ----
+suelo_baci_results <- baci_data %>%
+  select(
+    Site, Tratamiento, Variable,
+    lnRR_2021, lnRR_2022, Delta_lnRR, Delta_var,
+    exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio, Diferencia_Significativa
+  )
+
+# Guardar como CSV
+write.csv(suelo_baci_results,
+          "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/suelo_baci_results.csv",
+          row.names = FALSE)
+
+# Tabla visual con gt
+tabla_final <- suelo_baci_results %>%
+ gt:: gt() %>%
+ gt:: tab_header(
+    title = "Suelo - Resultados del análisis BACI (exp(lnRR))",
+    subtitle = "Comparación de tratamientos entre Toledo y Valencia"
+  ) %>%
+  fmt_number(columns = c(lnRR_2021, lnRR_2022, Delta_lnRR), decimals = 3) %>%
+  fmt_number(columns = c(exp_Delta_lnRR, exp_CI_lower, exp_CI_upper), decimals = 2) %>%
+  data_color(
+    columns = Diferencia_Significativa,
+    colors = scales::col_factor(palette = c("Sí" = "#15607A", "No" = "lightgray"), domain = c("Sí", "No"))
+  )
+  
+tabla_final
+
+```
+BACI BIRDS
+```{r}
+# 1. Cargar datos y preparar análisis ----
+summary_stats <- birds_stats
+metricas <- c("Riqueza", "Simpson", "Abundancia")
+results <- data.frame()
+
+# 2. Análisis para todos los sitios ----
+for (metrica in metricas) {
+  # HIGH vs CONTROL
+  high <- escalc(
+    measure = "ROM",
+    m1i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "high"],
+    m2i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "control"],
+    sd1i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "high"],
+    sd2i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "control"],
+    n1i = summary_stats$n_samples[summary_stats$treatment == "high"],
+    n2i = summary_stats$n_samples[summary_stats$treatment == "control"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Tratamiento = "high", 
+      Variable = metrica,
+      Year = summary_stats$year[summary_stats$treatment == "high"],
+      Control = "control"
+    )
+  
+  # HYPER vs CONTROL
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "hyper"],
+    m2i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "control"],
+    sd1i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "hyper"],
+    sd2i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "control"],
+    n1i = summary_stats$n_samples[summary_stats$treatment == "hyper"],
+    n2i = summary_stats$n_samples[summary_stats$treatment == "control"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Tratamiento = "hyper", 
+      Variable = metrica,
+      Year = summary_stats$year[summary_stats$treatment == "hyper"],
+      Control = "control"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+# 3. Transformar a exp(lnRR) y calcular IC ----
+results <- results %>% 
+  rename(lnRR = yi, var_lnRR = vi) %>% 
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# Gráfico lnRR
+
+# Reasignar etiquetas de las variables
+results$Variable <- factor(
+  results$Variable,
+  levels = c("Abundancia", "Riqueza", "Simpson"),
+  labels = c("Abundance", "Richness", "Diversity")
+)
+
+# Reasignar etiquetas de los grupos en la leyenda
+results$Grupo <- factor(
+  results$Grupo,
+  levels = c("high vs control", "hyper vs control"),
+  labels = c("Quintos de Mora - high vs control", 
+             "Quintos de Mora - hyper vs control")
+)
+
+plot_birds_lnRR <- ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "free_y", ncol = 1) +
+  labs(
+    title = "Birds - Treatment Effect Size = lnRR ± IC 95%",
+    x = "Time",
+    y = "lnRR",
+    color = NULL
+  ) +
+   scale_x_discrete(labels = c("2021" = "Before", "2022" = "After")) +
+  # ESCALA DE COLORES ROJO Y VERDE
+  scale_color_manual(
+    values = c(
+      "Quintos de Mora - high vs control" = "#E87E72",    # Rojo
+      "Quintos de Mora - hyper vs control" = "#86AD34"    # Verde
+    )
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_birds_lnRR.png",
+plot = plot_birds_lnRR,
+width = 5, height = 8, units = "in", dpi = 300)
+
+# 5. Análisis BACI con exp(ΔlnRR) ----
+baci_data <- results %>%
+  select(Tratamiento, Variable, Year, lnRR, var_lnRR) %>%
+  pivot_wider(names_from = Year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    exp_Delta_lnRR = exp(Delta_lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_Delta_lnRR - 1) * 100, 1),
+    Diferencia_Significativa = ifelse(CI_lower > 0 | CI_upper < 0, "Sí", "No")
+  )
+
+# 6. Gráfico BACI con exp(ΔlnRR) ----
+ggplot(baci_data, aes(x = Tratamiento, y = exp_Delta_lnRR, color = Tratamiento)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = exp_CI_lower, ymax = exp_CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "fixed") +
+  labs(
+    title = "Aves - Cambio en el efecto entre años (exp(ΔlnRR))",
+    x = "Tratamiento",
+    y = "Cambio relativo (2022 vs 2021)"
+  ) +
+  theme_minimal()
+
+# 7. Tabla final y exportación ----
+aves_baci_results <- baci_data %>%
+  select(
+    Tratamiento, Variable,
+    lnRR_2021, lnRR_2022, Delta_lnRR, Delta_var,
+    exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio, Diferencia_Significativa
+  )
+
+# Guardar como CSV
+write.csv(aves_baci_results,
+          "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/aves_baci_results.csv",
+          row.names = FALSE)
+
+# Tabla visual con gt
+tabla_final <- aves_baci_results %>%
+ gt:: gt() %>%
+  gt::tab_header(
+    title = "Aves - Resultados del análisis BACI (exp(lnRR))",
+    subtitle = "Comparación de tratamientos vs control"
+  ) %>%
+  fmt_number(columns = c(lnRR_2021, lnRR_2022, Delta_lnRR), decimals = 3) %>%
+  fmt_number(columns = c(exp_Delta_lnRR, exp_CI_lower, exp_CI_upper), decimals = 2) %>%
+  data_color(
+    columns = Diferencia_Significativa,
+    colors = scales::col_factor(palette = c("Sí" = "#15607A", "No" = "lightgray"), domain = c("Sí", "No"))
+  )
+  
+tabla_final
+```
+BACI HERBS
+```{r}
+summary_stats <- herbs_stats
+metricas <- c("Riqueza","Simpson", "Abundancia")
+results <- data.frame()
+
+# Toledo
+for (metrica in metricas) {
+  toledo <- summary_stats %>% filter(site == "toledo")
+  
+  high <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "high"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "high"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo$n_samples[toledo$treatment == "high"],
+    n2i = toledo$n_samples[toledo$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Toledo",
+      Tratamiento = "high",
+      Variable = metrica,
+      Year = toledo$year[toledo$treatment == "high"],
+      Control = "control"
+    )
+  
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "hyper"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "hyper"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo$n_samples[toledo$treatment == "hyper"],
+    n2i = toledo$n_samples[toledo$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Toledo",
+      Tratamiento = "hyper",
+      Variable = metrica,
+      Year = toledo$year[toledo$treatment == "hyper"],
+      Control = "control"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+# Valencia
+for (metrica in metricas) {
+  valencia <- summary_stats %>% filter(site == "valencia")
+  
+  high_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "high"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_high"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "high"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_high"],
+    n1i = valencia$n_samples[valencia$treatment == "high"],
+    n2i = valencia$n_samples[valencia$treatment == "control_high"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Valencia",
+      Tratamiento = "high",
+      Variable = metrica,
+      Year = valencia$year[valencia$treatment == "high"],
+      Control = "control_high"
+    )
+  
+  hyper_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "hyper"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_hyper"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "hyper"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_hyper"],
+    n1i = valencia$n_samples[valencia$treatment == "hyper"],
+    n2i = valencia$n_samples[valencia$treatment == "control_hyper"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Valencia",
+      Tratamiento = "hyper",
+      Variable = metrica,
+      Year = valencia$year[valencia$treatment == "hyper"],
+      Control = "control_hyper"
+    )
+  
+  results <- bind_rows(results, high_val, hyper_val)
+}
+
+# Cálculo de IC y transformación exponencial
+results <- results %>%
+  rename(lnRR = yi, var_lnRR = vi) %>%
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Site, "-", Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# Gráfico lnRR
+# Reasignar etiquetas de las variables
+results$Variable <- factor(
+  results$Variable,
+  levels = c("Abundancia", "Riqueza", "Simpson"),
+  labels = c("Abundance", "Richness", "Diversity")
+)
+
+# Reasignar etiquetas de los grupos en la leyenda
+results$Grupo <- factor(
+  results$Grupo,
+  levels = c(
+    "Toledo - high vs control",
+    "Toledo - hyper vs control",
+    "Valencia - high vs control_high",
+    "Valencia - hyper vs control_hyper"
+  ),
+  labels = c(
+    "Quintos de Mora - high vs control",
+    "Quintos de Mora - hyper vs control",
+    "Muela de Cortes - high vs control",
+    "Muela de Cortes - hyper vs control"
+  )
+)
+
+plot_herbs_lnRR <- ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "free_y", ncol = 1) +
+  labs(
+    title = "Herbaceous Vegetation - Treatment Effect Size = lnRR ± IC 95%",
+    x = "Time",
+    y = "lnRR",
+    color = NULL
+  ) +
+  scale_x_discrete(labels = c("2021" = "Before", "2022" = "After")) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_herbs_lnRR.png",
+plot = plot_herbs_lnRR,
+width = 6, height = 8, units = "in", dpi = 300)
+
+# Cálculo de cambios BACI
+baci_data <- results %>%
+  select(Site, Tratamiento, Variable, Year, lnRR, var_lnRR) %>%
+  pivot_wider(names_from = Year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    exp_Delta_lnRR = exp(Delta_lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_Delta_lnRR - 1) * 100, 1),
+    Diferencia_Significativa = ifelse(CI_lower > 0 | CI_upper < 0, "Sí", "No")
+  )
+
+# Gráfico de cambio entre años
+ggplot(baci_data, aes(x = Tratamiento, y = Delta_lnRR, color = Site)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "fixed") +
+  # ylim(0.4, 4) +
+  labs(
+    title = "Herbáceas - Cambio en el efecto entre años (ΔlnRR)",
+    x = "Tratamiento",
+    y = "Cambio relativo (2022 vs 2021)"
+  ) +
+  theme_minimal()
+
+# Tabla resumen
+tabla_final <- baci_data %>%
+  select(Site, Tratamiento, Variable,
+         lnRR_2021, lnRR_2022, Delta_lnRR,
+         CI_lower, CI_upper,
+         exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+         Porcentaje_Cambio, Diferencia_Significativa) %>%
+  gt::gt() %>%
+  tab_header(
+    title = "Herbáceas - Resultados del Análisis de lnRR entre Años",
+    subtitle = "Transformación exponencial y cambio porcentual (2022 vs 2021)"
+  ) %>%
+  cols_label(
+    Site = "Sitio",
+    Tratamiento = "Tratamiento",
+    Variable = "Métrica",
+    lnRR_2021 = "lnRR 2021",
+    lnRR_2022 = "lnRR 2022",
+    Delta_lnRR = "ΔlnRR",
+    CI_lower = "IC Inferior",
+    CI_upper = "IC Superior",
+    exp_Delta_lnRR = "exp(ΔlnRR)",
+    exp_CI_lower = "exp(IC Inf.)",
+    exp_CI_upper = "exp(IC Sup.)",
+    Porcentaje_Cambio = "% Cambio Relativo",
+    Diferencia_Significativa = "¿Significativo?"
+  ) %>%
+  fmt_number(columns = where(is.numeric), decimals = 3) %>%
+  data_color(
+    columns = Diferencia_Significativa,
+    colors = scales::col_factor(
+      palette = c("Sí" = "lightblue", "No" = "lightgray"),
+      domain = c("Sí", "No")
+    )
+  )
+
+tabla_final
+
+# Guardar la tabla final como CSV
+herbáceas_baci_results <- baci_data %>%
+  select(
+    Site, Tratamiento, Variable,
+    lnRR_2021, lnRR_2022, Delta_lnRR, Delta_var,
+    CI_lower, CI_upper,
+    exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio, Diferencia_Significativa
+  )
+
+# Crear la ruta completa (asegúrate de que el directorio existe)
+ruta_csv <- "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/herbáceas_baci_results.csv"
+
+# Guardar el archivo
+write.csv(herbáceas_baci_results, file = ruta_csv, row.names = FALSE)
+```
+BACI WOODY NEW
+```{r}
+# --- Datos y cálculos originales (modificados para incluir exp(lnRR)) ---
+summary_stats <- woody_stats
+metricas <- c("Riqueza", "Simpson", "Abundancia")
+results <- data.frame()
+
+# 1. Análisis para Toledo
+for (metrica in metricas) {
+  toledo <- summary_stats %>% filter(site == "toledo")
+  
+  high <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "high"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "high"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo$n_samples[toledo$treatment == "high"],
+    n2i = toledo$n_samples[toledo$treatment == "control"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Toledo", Tratamiento = "high", Variable = metrica,
+      Year = toledo$year[toledo$treatment == "high"], Control = "control"
+    )
+  
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "hyper"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "hyper"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo$n_samples[toledo$treatment == "hyper"],
+    n2i = toledo$n_samples[toledo$treatment == "control"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Toledo", Tratamiento = "hyper", Variable = metrica,
+      Year = toledo$year[toledo$treatment == "hyper"], Control = "control"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+# 2. Análisis para Valencia
+for (metrica in metricas) {
+  valencia <- summary_stats %>% filter(site == "valencia")
+  
+  high_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "high"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_high"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "high"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_high"],
+    n1i = valencia$n_samples[valencia$treatment == "high"],
+    n2i = valencia$n_samples[valencia$treatment == "control_high"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Valencia", Tratamiento = "high", Variable = metrica,
+      Year = valencia$year[valencia$treatment == "high"], Control = "control_high"
+    )
+  
+  hyper_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "hyper"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_hyper"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "hyper"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_hyper"],
+    n1i = valencia$n_samples[valencia$treatment == "hyper"],
+    n2i = valencia$n_samples[valencia$treatment == "control_hyper"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Valencia", Tratamiento = "hyper", Variable = metrica,
+      Year = valencia$year[valencia$treatment == "hyper"], Control = "control_hyper"
+    )
+  
+  results <- bind_rows(results, high_val, hyper_val)
+}
+
+# 3. Transformar a exp(lnRR) y calcular IC
+results <- results %>% 
+  rename(lnRR = yi, var_lnRR = vi) %>% 
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Site, "-", Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# Gráfico lnRR
+# Reasignar etiquetas de las variables
+results$Variable <- factor(
+  results$Variable,
+  levels = c("Abundancia", "Riqueza", "Simpson"),
+  labels = c("Abundance", "Richness", "Diversity")
+)
+
+# Reasignar etiquetas de los grupos en la leyenda
+results$Grupo <- factor(
+  results$Grupo,
+  levels = c(
+    "Toledo - high vs control",
+    "Toledo - hyper vs control",
+    "Valencia - high vs control_high",
+    "Valencia - hyper vs control_hyper"
+  ),
+  labels = c(
+    "Quintos de Mora - high vs control",
+    "Quintos de Mora - hyper vs control",
+    "Muela de Cortes - high vs control",
+    "Muela de Cortes - hyper vs control"
+  )
+)
+
+plot_woody_lnRR <- ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "free_y", ncol = 1) +
+  labs(
+    title = "Woody Vegetation - Treatment Effect Size = lnRR ± IC 95%",
+    x = "Time",
+    y = "lnRR",
+    color = NULL
+  ) +
+  scale_x_discrete(labels = c("2021" = "Before", "2022" = "After")) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_woody_lnRR.png",
+plot = plot_woody_lnRR,
+width = 6, height = 8, units = "in", dpi = 300)
+
+# Gráfico 2: Análisis BACI (2022 vs 2021)
+baci_data <- results %>%
+  select(Site, Tratamiento, Variable, Year, lnRR, var_lnRR) %>%
+  pivot_wider(names_from = Year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    exp_Delta_lnRR = exp(Delta_lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_Delta_lnRR - 1) * 100, 1),
+    Diferencia_Significativa = ifelse(CI_lower > 0 | CI_upper < 0, "Sí", "No")
+  )
+
+ggplot(baci_data, aes(x = Tratamiento, y = Delta_lnRR, color = Site)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+ facet_wrap(~Variable, scales = "fixed") +
+  labs(
+    title = "Cambio en el efecto entre años (ΔlnRR)",
+    x = "Tratamiento",
+    y = "Cambio relativo (2022 vs 2021)"
+  ) +
+  theme_minimal()
+
+# --- Tabla final y exportación ---
+leñosas_baci_results <- baci_data %>%
+  select(
+    Site, Tratamiento, Variable,
+    lnRR_2021, lnRR_2022, Delta_lnRR, Delta_var,
+    exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio, Diferencia_Significativa
+  )
+
+write.csv(leñosas_baci_results,
+          "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/leñosas_baci_results.csv",
+          row.names = FALSE)
+
+
+tabla_final <- leñosas_baci_results %>%
+  gt::gt() %>%
+  gt::tab_header(
+   title = "Resultados leñosas del análisis BACI (exp(lnRR))",
+  subtitle = "Comparación de tratamientos entre Toledo y Valencia"
+  ) %>%
+  fmt_number(columns = c(lnRR_2021, lnRR_2022, Delta_lnRR), decimals = 3) %>%
+  fmt_number(columns = c(exp_Delta_lnRR, exp_CI_lower, exp_CI_upper), decimals = 2) %>%
+  data_color(
+    columns = Diferencia_Significativa,
+    colors = scales::col_factor(palette = c("Sí" = "#15607A", "No" = "lightgray"), domain = c("Sí", "No")))
+tabla_final
+```
+BACI RESPUESTA ECOFISIOLÓGICA
+```{r}
+summary_stats<-datos_fisiología
+# 1. Definir las variables a analizar
+metricas <- c("antocianina", "clorofila")
+
+# 2. Crear un dataframe vacío para almacenar resultados
+results <- data.frame()
+
+# 3. Análisis para Toledo (high/hyper vs control)
+for (metrica in metricas) {
+  # Extraer datos de Toledo
+  toledo <- summary_stats %>% filter(site == "toledo")
+  
+  # HIGH vs CONTROL
+  high <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "high"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "high"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+  n1i = toledo$n_samples[toledo$treatment == "high"],
+    n2i = toledo$n_samples[toledo$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Toledo",
+      Tratamiento = "high",
+      Variable = metrica,
+      Year = toledo$year[toledo$treatment == "high"],
+      Control = "control"
+    )
+  
+  # HYPER vs CONTROL
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "hyper"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "hyper"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+ n1i = toledo$n_samples[toledo$treatment == "hyper"],
+    n2i = toledo$n_samples[toledo$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Toledo",
+      Tratamiento = "hyper",
+      Variable = metrica,
+      Year = toledo$year[toledo$treatment == "hyper"],
+      Control = "control"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+# 4. Análisis para Valencia (high vs control_high, hyper vs control_hyper)
+for (metrica in metricas) {
+  valencia <- summary_stats %>% filter(site == "valencia")
+  
+  # HIGH vs CONTROL_HIGH
+  high_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "high"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_high"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "high"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_high"],
+  n1i = valencia$n_samples[valencia$treatment == "high"],
+    n2i = valencia$n_samples[valencia$treatment == "control_high"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Valencia",
+      Tratamiento = "high",
+      Variable = metrica,
+      Year = valencia$year[valencia$treatment == "high"],
+      Control = "control_high"
+    )
+  
+  # HYPER vs CONTROL_HYPER
+  hyper_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "hyper"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_hyper"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "hyper"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_hyper"],
+  n1i = valencia$n_samples[valencia$treatment == "hyper"],
+    n2i = valencia$n_samples[valencia$treatment == "control_hyper"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Valencia",
+      Tratamiento = "hyper",
+      Variable = metrica,
+      Year = valencia$year[valencia$treatment == "hyper"],
+      Control = "control_hyper"
+    )
+  
+  results <- bind_rows(results, high_val, hyper_val)
+}
+
+# Voy a meter aquí una prueba, ya que tengo las clorofila en positivo como si hubiera incrementado cuando yo se que no es así, ya que he dividido dos valores negativos entre si. Voy a multiplicar por -1 los valores del log response ratio para clorofila en este punto.
+results <- results %>%
+  mutate(yi = if_else(Variable == "clorofila", -1 * yi, yi))
+
+# Cálculo de IC y transformación exponencial
+baci_data <- results %>%
+  rename(lnRR = yi, var_lnRR = vi) %>%
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Site, "-", Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# 5.1.  Voy a transformar los resultados para clorofila, ya que en realidad son una reducción, pero al ser ambos valores negativos, el log Xt/Xc rinde valores positivos
+#baci_data <- baci_data %>%
+#  mutate(across(c(lnRR, var_lnRR, CI_lower, CI_upper, exp_lnRR,exp_CI_lower, exp_CI_upper, #Porcentaje_Cambio), 
+#               ~ ifelse(Variable == "clorofila", . * -1, .)))
+
+# Gráfico lnRR
+# Reasignar etiquetas de las variables
+baci_data$Variable <- factor(
+  baci_data$Variable,
+  levels = c("antocianina", "clorofila"),
+  labels = c("Anthocyanin", "Chlorophyll")
+)
+
+# Reasignar etiquetas de los grupos en la leyenda
+baci_data$Grupo <- factor(
+  baci_data$Grupo,
+  levels = c(
+    "Toledo - high vs control",
+    "Toledo - hyper vs control",
+    "Valencia - high vs control_high",
+    "Valencia - hyper vs control_hyper"
+  ),
+  labels = c(
+    "Quintos de Mora - high vs control",
+    "Quintos de Mora - hyper vs control",
+    "Muela de Cortes - high vs control",
+    "Muela de Cortes - hyper vs control"
+  )
+)
+
+
+# 7. Gráfico de cambios BACI (2022 vs 2021)
+
+plot_eco_lnRR <- ggplot(baci_data, aes(x = Tratamiento, y = lnRR, color = Site)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "fixed") +
+  labs(
+    title = "Plant ecophysiological responses - Treatment Effect Size = ΔlnRR ± IC 95%",
+    x = "Tratamiento",
+    y = "ΔlnRR"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+#ggsave(
+#filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_eco_lnRR.png",
+#plot = plot_eco_lnRR,
+#width = 6, height = 8, units = "in", dpi = 300)
+
+
+# Tabla resumen
+tabla_final <- baci_data %>%
+  select(Site, Tratamiento, Variable,
+         lnRR, var_lnRR,
+         CI_lower, CI_upper,
+         exp_lnRR, exp_CI_lower, exp_CI_upper,
+         Porcentaje_Cambio) %>%
+ gt:: gt() %>%
+  gt::tab_header(
+    title = "Respuestas fisiológicas - Resultados del Análisis de lnRR entre Años",
+    subtitle = "Transformación exponencial y cambio porcentual (2022 vs 2021)"
+  ) %>%
+  cols_label(
+    Site = "Sitio",
+    Tratamiento = "Tratamiento",
+    Variable = "Métrica",
+    lnRR = "ΔlnRR",
+    CI_lower = "IC Inferior",
+    CI_upper = "IC Superior",
+    exp_lnRR = "exp(ΔlnRR)",
+    exp_CI_lower = "exp(IC Inf.)",
+    exp_CI_upper = "exp(IC Sup.)",
+    Porcentaje_Cambio = "% Cambio Relativo",
+  ) %>%
+  fmt_number(columns = where(is.numeric), decimals = 3)
+
+tabla_final
+baci_data <- baci_data %>%
+  rename(Delta_var = var_lnRR)
+
+# Guardar la tabla final como CSV
+ecofisiologica_baci_results <- baci_data %>%
+  select(
+    Site, Tratamiento, Variable,
+    lnRR,
+    CI_lower, CI_upper, Delta_var,
+    exp_lnRR, 
+    exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio
+  )
+
+# Crear la ruta completa (asegúrate de que el directorio existe)
+ruta_csv <- "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/ecofisiologica_baci_results.csv"
+
+# Guardar el archivo
+write.csv(ecofisiologica_baci_results, file = ruta_csv, row.names = FALSE)
+```
+BACI SIZE SPECTRUM INDEXS
+```{r}
+summary_stats<-size_spectrum_stats
+# 1. Definir las variables a analizar
+metricas <- c( "invertebrate_biomass", "lambda")
+
+# 2. Crear un dataframe vacío para almacenar resultados
+results <- data.frame()
+
+# 3. Análisis para Toledo (high/hyper vs control)
+for (metrica in metricas) {
+  # Extraer datos de Toledo
+  toledo <- summary_stats %>% filter(site == "toledo")
+  
+  # HIGH vs CONTROL
+  high <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "high"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "high"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo[[paste0("n_", metrica)]][toledo$treatment == "high"],
+    n2i = toledo[[paste0("n_", metrica)]][toledo$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Toledo",
+      Tratamiento = "high",
+      Variable = metrica,
+      Year = toledo$year[toledo$treatment == "high"],
+      Control = "control"
+    )
+  
+  # HYPER vs CONTROL
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "hyper"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "hyper"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo[[paste0("n_", metrica)]][toledo$treatment == "hyper"],
+    n2i = toledo[[paste0("n_", metrica)]][toledo$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Toledo",
+      Tratamiento = "hyper",
+      Variable = metrica,
+      Year = toledo$year[toledo$treatment == "hyper"],
+      Control = "control"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+# 4. Análisis para Valencia (high vs control_high, hyper vs control_hyper)
+for (metrica in metricas) {
+  valencia <- summary_stats %>% filter(site == "valencia")
+  
+  # HIGH vs CONTROL_HIGH
+  high_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "high"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_high"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "high"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_high"],
+    n1i = toledo[[paste0("n_", metrica)]][toledo$treatment == "high"],
+    n2i = toledo[[paste0("n_", metrica)]][toledo$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Valencia",
+      Tratamiento = "high",
+      Variable = metrica,
+      Year = valencia$year[valencia$treatment == "high"],
+      Control = "control_high"
+    )
+  
+  # HYPER vs CONTROL_HYPER
+  hyper_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "hyper"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_hyper"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "hyper"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_hyper"],
+    n1i = toledo[[paste0("n_", metrica)]][toledo$treatment == "hyper"],
+    n2i = toledo[[paste0("n_", metrica)]][toledo$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Valencia",
+      Tratamiento = "hyper",
+      Variable = metrica,
+      Year = valencia$year[valencia$treatment == "hyper"],
+      Control = "control_hyper"
+    )
+  
+  results <- bind_rows(results, high_val, hyper_val)
+}
+
+# Cálculo de IC y transformación exponencial
+results <- results %>%
+  rename(lnRR = yi, var_lnRR = vi) %>%
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Site, "-", Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# Gráfico lnRR
+
+# Reasignar etiquetas de las variables
+results$Variable <- factor(
+  results$Variable,
+  levels = c("invertebrate_biomass", "lambda"),
+  labels = c("Invertebrate Biomass", "Trophic efficiency")
+)
+
+# Reasignar etiquetas de los grupos en la leyenda
+results$Grupo <- factor(
+  results$Grupo,
+  levels = c(
+    "Toledo - high vs control",
+    "Toledo - hyper vs control",
+    "Valencia - high vs control_high",
+    "Valencia - hyper vs control_hyper"
+  ),
+  labels = c(
+    "Quintos de Mora - high vs control",
+    "Quintos de Mora - hyper vs control",
+    "Muela de Cortes - high vs control",
+    "Muela de Cortes - hyper vs control"
+  )
+)
+
+plot_spectrum_lnRR <- ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "free_y", ncol = 1) +
+  labs(
+    title = "Invertebrate structure and function 
+  Treatment Effect Size = lnRR ± IC 95%",
+    x = "Time",
+    y = "lnRR",
+    color = NULL
+  ) +
+  scale_x_discrete(labels = c("2021" = "Before", "2022" = "After")) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_spectrum_lnRR.png",
+plot = plot_spectrum_lnRR,
+width = 6, height = 8, units = "in", dpi = 300)
+
+# Cálculo de cambios BACI
+baci_data <- results %>%
+  select(Site, Tratamiento, Variable, Year, lnRR, var_lnRR) %>%
+  pivot_wider(names_from = Year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    exp_Delta_lnRR = exp(Delta_lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_Delta_lnRR - 1) * 100, 1),
+    Diferencia_Significativa = ifelse(CI_lower > 0 | CI_upper < 0, "Sí", "No")
+  )
+
+# Gráfico de cambio entre años
+ggplot(baci_data, aes(x = Tratamiento, y = Delta_lnRR, color = Site)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "free_y") +
+  # ylim(0.4, 4) +
+  labs(
+    title = "Size spectrum - Cambio en el efecto entre años (ΔlnRR)",
+    x = "Tratamiento",
+    y = "Cambio relativo (2022 vs 2021)"
+  ) +
+  theme_minimal()
+
+# Tabla resumen
+tabla_final <- baci_data %>%
+  select(Site, Tratamiento, Variable,
+         lnRR_2021, lnRR_2022, Delta_lnRR,
+         CI_lower, CI_upper,
+         exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+         Porcentaje_Cambio, Diferencia_Significativa) %>%
+  gt::gt() %>%
+  gt::tab_header(
+    title = "size spectrum - Resultados del Análisis de lnRR entre Años",
+    subtitle = "Transformación exponencial y cambio porcentual (2022 vs 2021)"
+  ) %>%
+  cols_label(
+    Site = "Sitio",
+    Tratamiento = "Tratamiento",
+    Variable = "Métrica",
+    lnRR_2021 = "lnRR 2021",
+    lnRR_2022 = "lnRR 2022",
+    Delta_lnRR = "ΔlnRR",
+    CI_lower = "IC Inferior",
+    CI_upper = "IC Superior",
+    exp_Delta_lnRR = "exp(ΔlnRR)",
+    exp_CI_lower = "exp(IC Inf.)",
+    exp_CI_upper = "exp(IC Sup.)",
+    Porcentaje_Cambio = "% Cambio Relativo",
+    Diferencia_Significativa = "¿Significativo?"
+  ) %>%
+  fmt_number(columns = where(is.numeric), decimals = 3) %>%
+  data_color(
+    columns = Diferencia_Significativa,
+    colors = scales::col_factor(
+      palette = c("Sí" = "lightblue", "No" = "lightgray"),
+      domain = c("Sí", "No")
+    )
+  )
+
+tabla_final
+
+# Guardar la tabla final como CSV
+sizespectrum_baci_results <- baci_data %>%
+  select(
+    Site, Tratamiento, Variable,
+    lnRR_2021, lnRR_2022, Delta_lnRR, Delta_var,
+    CI_lower, CI_upper,
+    exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio, Diferencia_Significativa
+  )
+
+# Crear la ruta completa (asegúrate de que el directorio existe)
+ruta_csv <- "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/sizespectrum_baci_results.csv"
+
+# Guardar el archivo
+write.csv(sizespectrum_baci_results, file = ruta_csv, row.names = FALSE)
+```
+BACI HABITAT COMPOSITION NEW
+```{r}
+# 
+summary_stats<-composicion_combined
+metricas <- c("Bare_ground", "altura")
+results <- data.frame()
+
+# 1. Análisis para Toledo
+for (metrica in metricas) {
+  toledo <- summary_stats %>% filter(site == "toledo")
+  
+  high <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "high"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "high"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo[[paste0("n_", metrica)]][toledo$treatment == "high"],
+    n2i = toledo[[paste0("n_", metrica)]][toledo$treatment == "control"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Toledo", Tratamiento = "high", Variable = metrica,
+      Year = toledo$year[toledo$treatment == "high"], Control = "control"
+    )
+  
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "hyper"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "hyper"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo[[paste0("n_", metrica)]][toledo$treatment == "hyper"],
+    n2i = toledo[[paste0("n_", metrica)]][toledo$treatment == "control"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Toledo", Tratamiento = "hyper", Variable = metrica,
+      Year = toledo$year[toledo$treatment == "hyper"], Control = "control"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+# 2. Análisis para Valencia
+for (metrica in metricas) {
+  valencia <- summary_stats %>% filter(site == "valencia")
+  
+  high_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "high"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_high"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "high"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_high"],
+    n1i = valencia[[paste0("n_", metrica)]][valencia$treatment == "high"],
+    n2i = valencia[[paste0("n_", metrica)]][valencia$treatment == "control_high"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Valencia", Tratamiento = "high", Variable = metrica,
+      Year = valencia$year[valencia$treatment == "high"], Control = "control_high"
+    )
+  
+  hyper_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "hyper"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_hyper"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "hyper"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_hyper"],
+    n1i = valencia[[paste0("n_", metrica)]][valencia$treatment == "hyper"],
+    n2i = valencia[[paste0("n_", metrica)]][valencia$treatment == "control_hyper"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Valencia", Tratamiento = "hyper", Variable = metrica,
+      Year = valencia$year[valencia$treatment == "hyper"], Control = "control_hyper"
+    )
+  
+  results <- bind_rows(results, high_val, hyper_val)
+}
+
+# 3. Transformar a exp(lnRR) y calcular IC
+results <- results %>% 
+  rename(lnRR = yi, var_lnRR = vi) %>% 
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Site, "-", Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# Gráfico lnRR
+
+# Reasignar etiquetas de las variables
+results$Variable <- factor(
+  results$Variable,
+  levels = c("Bare_ground", "altura"),
+  labels = c("Bare ground", "Vegetation Height")
+)
+
+# Reasignar etiquetas de los grupos en la leyenda
+results$Grupo <- factor(
+  results$Grupo,
+  levels = c(
+    "Toledo - high vs control",
+    "Toledo - hyper vs control",
+    "Valencia - high vs control_high",
+    "Valencia - hyper vs control_hyper"
+  ),
+  labels = c(
+    "Quintos de Mora - high vs control",
+    "Quintos de Mora - hyper vs control",
+    "Muela de Cortes - high vs control",
+    "Muela de Cortes - hyper vs control"
+  )
+)
+
+plot_habitat_lnRR <- ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "free_y", ncol = 1) +
+  labs(
+    title = "Habitat Composition 
+  Treatment Effect Size = lnRR ± IC 95%",
+    x = "Time",
+    y = "lnRR",
+    color = NULL
+  ) +
+  scale_x_discrete(labels = c("2021" = "Before", "2022" = "After")) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_habitat_lnRR.png",
+plot = plot_habitat_lnRR,
+width = 6, height = 8, units = "in", dpi = 300)
+
+# Gráfico 2: Análisis BACI (2022 vs 2021)
+baci_data <- results %>%
+  select(Site, Tratamiento, Variable, Year, lnRR, var_lnRR) %>%
+  pivot_wider(names_from = Year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    exp_Delta_lnRR = exp(Delta_lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_Delta_lnRR - 1) * 100, 1),
+    Diferencia_Significativa = ifelse(CI_lower > 0 | CI_upper < 0, "Sí", "No")
+  )
+
+ggplot(baci_data, aes(x = Tratamiento, y = Delta_lnRR, color = Site)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+ facet_wrap(~Variable, scales = "fixed") +
+  labs(
+    title = "Cambio en el efecto entre años (ΔlnRR)",
+    x = "Tratamiento",
+    y = "Cambio relativo (2022 vs 2021)"
+  ) +
+  theme_minimal()
+
+# --- Tabla final y exportación ---
+habitatcomposition_baci_results <- baci_data %>%
+  select(
+    Site, Tratamiento, Variable,
+    lnRR_2021, lnRR_2022, Delta_lnRR, Delta_var,
+    exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio, Diferencia_Significativa
+  )
+
+write.csv(habitatcomposition_baci_results,
+          "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/habitatcomposition_baci_results.csv",
+          row.names = FALSE)
+
+
+tabla_final <- habitatcomposition_baci_results %>%
+  gt::gt() %>%
+  gt::tab_header(
+   title = "Resultados habitat composition del análisis BACI (exp(lnRR))",
+  subtitle = "Comparación de tratamientos entre Toledo y Valencia"
+  ) %>%
+  fmt_number(columns = c(lnRR_2021, lnRR_2022, Delta_lnRR), decimals = 3) %>%
+  fmt_number(columns = c(exp_Delta_lnRR, exp_CI_lower, exp_CI_upper), decimals = 2) %>%
+  data_color(
+    columns = Diferencia_Significativa,
+    colors = scales::col_factor(palette = c("Sí" = "#15607A", "No" = "lightgray"), domain = c("Sí", "No")))
+tabla_final
+```
+BACI GARRAPATAS
+```{r}
+summary_stats <- garrapatas_summary
+
+# 1. Definir las variables a analizar
+metricas <- c("garrapatas")
+
+# 2. Crear un dataframe vacío para almacenar resultados
+results <- data.frame()
+
+# 4. Análisis para Valencia (high vs control_high, hyper vs control_hyper)
+for (metrica in metricas) {
+  # HIGH vs CONTROL_HIGH
+  high <- escalc(
+    measure = "ROM",
+    m1i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "high"],
+    m2i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "control_high"],
+    sd1i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "high"],
+    sd2i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "control_high"],
+    n1i = summary_stats$n_garrapatas[summary_stats$treatment == "high"],
+    n2i = summary_stats$n_garrapatas[summary_stats$treatment == "control_high"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Tratamiento = "high",
+      Variable = metrica,
+      Year = summary_stats$year[summary_stats$treatment == "high"],
+      Control = "control_high"
+    )
+  
+  # HYPER vs CONTROL_HYPER
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "hyper"],
+    m2i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "control_hyper"],
+    sd1i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "hyper"],
+    sd2i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "control_hyper"],
+    n1i = summary_stats$n_garrapatas[summary_stats$treatment == "hyper"],
+    n2i = summary_stats$n_garrapatas[summary_stats$treatment == "control_hyper"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Tratamiento = "hyper",
+      Variable = metrica,
+      Year = summary_stats$year[summary_stats$treatment == "hyper"],
+      Control = "control_hyper"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+# 3. Transformar a exp(lnRR) y calcular IC ----
+results <- results %>% 
+  rename(lnRR = yi, var_lnRR = vi) %>% 
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# Gráfico lnRR
+
+# Reasignar etiquetas de las variables
+results$Variable <- factor(
+  results$Variable,
+  levels = "garrapatas",
+  labels = "Ticks Abundance")
+
+
+# Reasignar etiquetas de los grupos en la leyenda
+results$Grupo <- factor(
+  results$Grupo,
+  levels = c("high vs control_high", "hyper vs control_hyper"),
+  labels = c("Muela de Cortes - high vs control", 
+             "Muela de Cortes - hyper vs control")
+)
+
+plot_ticks_lnRR <- ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "free_y", ncol = 1) +
+  labs(
+    title = "Vector encounter risk 
+  Treatment Effect Size = lnRR ± IC 95%",
+    x = "Time",
+    y = "lnRR",
+    color = NULL
+  ) +
+    scale_x_discrete(labels = c("2021" = "Before", "2022" = "After")) +
+  # ESCALA DE COLORES ROJO Y VERDE
+  scale_color_manual(
+    values = c(
+      "Muela de Cortes - high vs control" = "#E87E72",    # Rojo
+      "Muela de Cortes - hyper vs control" = "#86AD34"    # Verde
+    )
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_ticks_lnRR.png",
+plot = plot_ticks_lnRR,
+width = 6, height = 8, units = "in", dpi = 300)
+
+
+ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "free_y", ncol = 1) +
+  labs(
+    title = "Garrapatas en el ambiente- Efecto de tratamientos ((lnRR) ± IC 95%)",
+    x = "Año",
+    y = "Cambio relativo (lnRR)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# 5. Análisis BACI con exp(ΔlnRR) ----
+baci_data <- results %>%
+  select(Tratamiento, Variable, Year, lnRR, var_lnRR) %>%
+  pivot_wider(names_from = Year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    exp_Delta_lnRR = exp(Delta_lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_Delta_lnRR - 1) * 100, 1),
+    Diferencia_Significativa = ifelse(CI_lower > 0 | CI_upper < 0, "Sí", "No")
+  )
+
+# 6. Gráfico BACI con exp(ΔlnRR) ----
+ggplot(baci_data, aes(x = Tratamiento, y = Delta_lnRR, color = Tratamiento)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "fixed") +
+  labs(
+    title = "Garrapatas en el ambiente - Cambio en el efecto entre años (exp(ΔlnRR))",
+    x = "Tratamiento",
+    y = "Cambio relativo (2022 vs 2021)"
+  ) +
+  theme_minimal()
+
+# 7. Tabla final y exportación ----
+garrapatas_baci_results <- baci_data %>%
+  select(
+    Tratamiento, Variable,
+    lnRR_2021, lnRR_2022, Delta_lnRR, Delta_var,
+    exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio, Diferencia_Significativa
+  )
+
+# Guardar como CSV
+write.csv(garrapatas_baci_results,
+          "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/garrapatas_baci_results.csv",
+          row.names = FALSE)
+
+# Tabla visual con gt
+tabla_final <- garrapatas_baci_results %>%
+  gt::gt() %>%
+  gt::tab_header(
+    title = "Garrapatas en el ambiente- Resultados del análisis BACI (exp(lnRR))",
+    subtitle = "Comparación de tratamientos vs control"
+  ) %>%
+  fmt_number(columns = c(lnRR_2021, lnRR_2022, Delta_lnRR), decimals = 3) %>%
+  fmt_number(columns = c(exp_Delta_lnRR, exp_CI_lower, exp_CI_upper), decimals = 2) %>%
+  data_color(
+    columns = Diferencia_Significativa,
+    colors = scales::col_factor(palette = c("Sí" = "#15607A", "No" = "lightgray"), domain = c("Sí", "No"))
+  )
+  
+tabla_final
+```
+BACI REGENERATION NEW
+```{r}
+# --- Datos y cálculos originales (modificados para incluir exp(lnRR)) ---
+summary_stats <- regeneracion
+metricas <- c("abundance", "richness", "simpson")
+results <- data.frame()
+
+# 1. Análisis para Toledo
+for (metrica in metricas) {
+  toledo <- summary_stats %>% filter(site == "toledo")
+  
+  high <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "high"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "high"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo[[paste0("n_", metrica)]][toledo$treatment == "high"],
+    n2i = toledo[[paste0("n_", metrica)]][toledo$treatment == "control"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Toledo", Tratamiento = "high", Variable = metrica,
+      Year = toledo$year[toledo$treatment == "high"], Control = "control"
+    )
+  
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "hyper"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "hyper"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo[[paste0("n_", metrica)]][toledo$treatment == "hyper"],
+    n2i = toledo[[paste0("n_", metrica)]][toledo$treatment == "control"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Toledo", Tratamiento = "hyper", Variable = metrica,
+      Year = toledo$year[toledo$treatment == "hyper"], Control = "control"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+# 2. Análisis para Valencia
+for (metrica in metricas) {
+  valencia <- summary_stats %>% filter(site == "valencia")
+  
+  high_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "high"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_high"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "high"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_high"],
+    n1i = valencia[[paste0("n_", metrica)]][valencia$treatment == "high"],
+    n2i = valencia[[paste0("n_", metrica)]][valencia$treatment == "control_high"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Valencia", Tratamiento = "high", Variable = metrica,
+      Year = valencia$year[valencia$treatment == "high"], Control = "control_high"
+    )
+  
+  hyper_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "hyper"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_hyper"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "hyper"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_hyper"],
+    n1i = valencia[[paste0("n_", metrica)]][valencia$treatment == "hyper"],
+    n2i = valencia[[paste0("n_", metrica)]][valencia$treatment == "control_hyper"]
+  ) %>% 
+    as.data.frame() %>% 
+    mutate(
+      Site = "Valencia", Tratamiento = "hyper", Variable = metrica,
+      Year = valencia$year[valencia$treatment == "hyper"], Control = "control_hyper"
+    )
+  
+  results <- bind_rows(results, high_val, hyper_val)
+}
+
+# 3. Transformar a exp(lnRR) y calcular IC
+results <- results %>% 
+  rename(lnRR = yi, var_lnRR = vi) %>% 
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Site, "-", Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# Gráfico lnRR
+
+# Reasignar etiquetas de las variables
+results$Variable <- factor(
+  results$Variable,
+  levels = c("abundance", "richness", "simpson"),
+  labels = c("Abundance", "Richness", "Diversity")
+)
+
+# Reasignar etiquetas de los grupos en la leyenda
+results$Grupo <- factor(
+  results$Grupo,
+  levels = c(
+    "Toledo - high vs control",
+    "Toledo - hyper vs control",
+    "Valencia - high vs control_high",
+    "Valencia - hyper vs control_hyper"
+  ),
+  labels = c(
+    "Quintos de Mora - high vs control",
+    "Quintos de Mora - hyper vs control",
+    "Muela de Cortes - high vs control",
+    "Muela de Cortes - hyper vs control"
+  )
+)
+
+plot_regeneration_lnRR <- ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "free_y", ncol = 1) +
+  labs(
+    title = "Woody Regeneration 
+  Treatment Effect Size = lnRR ± IC 95%",
+    x = "Time",
+    y = "lnRR",
+    color = NULL
+  ) +
+  scale_x_discrete(labels = c("2021" = "Before", "2022" = "After")) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_regeneration_lnRR.png",
+plot = plot_regeneration_lnRR,
+width = 5, height = 8, units = "in", dpi = 300)
+
+# Gráfico 2: Análisis BACI (2022 vs 2021)
+baci_data <- results %>%
+  select(Site, Tratamiento, Variable, Year, lnRR, var_lnRR) %>%
+  pivot_wider(names_from = Year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    exp_Delta_lnRR = exp(Delta_lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_Delta_lnRR - 1) * 100, 1),
+    Diferencia_Significativa = ifelse(CI_lower > 0 | CI_upper < 0, "Sí", "No")
+  )
+
+ggplot(baci_data, aes(x = Tratamiento, y = Delta_lnRR, color = Site)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+ facet_wrap(~Variable, scales = "fixed") +
+  labs(
+    title = "Cambio en el efecto entre años ΔlnRR",
+    x = "Tratamiento",
+    y = "Cambio relativo (2022 vs 2021)"
+  ) +
+  theme_minimal()
+
+# --- Tabla final y exportación ---
+regeneracion_baci_results <- baci_data %>%
+  select(
+    Site, Tratamiento, Variable,
+    lnRR_2021, lnRR_2022, Delta_lnRR, Delta_var,
+    exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio, Diferencia_Significativa
+  )
+
+write.csv(regeneracion_baci_results,
+          "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/regeneracion_baci_results.csv",
+          row.names = FALSE)
+
+
+tabla_final <- regeneracion_baci_results %>%
+  gt::gt() %>%
+  gt::tab_header(
+   title = "Resultados regenerado del análisis BACI (exp(lnRR))",
+  subtitle = "Comparación de tratamientos entre Toledo y Valencia"
+  ) %>%
+  fmt_number(columns = c(lnRR_2021, lnRR_2022, Delta_lnRR), decimals = 3) %>%
+  fmt_number(columns = c(exp_Delta_lnRR, exp_CI_lower, exp_CI_upper), decimals = 2) %>%
+  data_color(
+    columns = Diferencia_Significativa,
+    colors = scales::col_factor(palette = c("Sí" = "#15607A", "No" = "lightgray"), domain = c("Sí", "No")))
+tabla_final
+```
+BACI HERBIVORÍA
+```{r}
+summary_stats<-browsing_summary
+# 1. Definir las variables a analizar
+metricas <- c("browsing")
+
+# 2. Crear un dataframe vacío para almacenar resultados
+results <- data.frame()
+
+# 3. Análisis para Toledo (high/hyper vs control)
+for (metrica in metricas) {
+  
+  # HIGH vs CONTROL
+  high <- escalc(
+    measure = "ROM",
+    m1i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "high"],
+    m2i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "control"],
+    sd1i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "high"],
+    sd2i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "control"],
+    n1i = summary_stats[[paste0("n_", metrica)]][summary_stats$treatment == "high"],
+    n2i = summary_stats[[paste0("n_", metrica)]][summary_stats$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Tratamiento = "high",
+      Variable = metrica,
+      Year = summary_stats$year[summary_stats$treatment == "high"],
+      Control = "control"
+    )
+  
+  # HYPER vs CONTROL
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "hyper"],
+    m2i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "control"],
+    sd1i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "hyper"],
+    sd2i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "control"],
+    n1i = summary_stats[[paste0("n_", metrica)]][summary_stats$treatment == "hyper"],
+    n2i = summary_stats[[paste0("n_", metrica)]][summary_stats$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Tratamiento = "hyper",
+      Variable = metrica,
+      Year = summary_stats$year[summary_stats$treatment == "hyper"],
+      Control = "control"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+# 3. Transformar a exp(lnRR) y calcular IC ----
+results <- results %>% 
+  rename(lnRR = yi, var_lnRR = vi) %>% 
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# Reasignar etiquetas de las variables
+results$Variable <- factor(
+  results$Variable,
+  levels = "browsing",
+  labels = c("Browsing CWMb")
+)
+
+# Reasignar etiquetas de los grupos en la leyenda
+results$Grupo <- factor(
+  results$Grupo,
+  levels = c(
+    "high vs control",
+    "hyper vs control"
+  ),
+  labels = c(
+    "Quintos de Mora - high vs control",
+    "Quintos de Mora - hyper vs control"
+  )
+)
+
+plot_browsing_lnRR <- ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    title = "Browsing Degree - Treatment Effect Size = lnRR ± IC 95%",
+    subtitle = "Community Weighted Mean",
+    x = "Time",
+    y = "lnRR",
+    color = NULL
+  ) +
+  scale_x_discrete(labels = c("2021" = "Before", "2022" = "After")) +
+  # ESCALA DE COLORES ROJO Y VERDE
+  scale_color_manual(
+    values = c(
+      "Quintos de Mora - high vs control" = "#E87E72",    # Rojo
+      "Quintos de Mora - hyper vs control" = "#86AD34"    # Verde
+    )
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_browsing_lnRR.png",
+plot = plot_browsing_lnRR,
+width = 6, height = 8, units = "in", dpi = 300)
+
+# 5. Análisis BACI con exp(ΔlnRR) ----
+baci_data <- results %>%
+  select(Tratamiento, Variable, Year, lnRR, var_lnRR) %>%
+  pivot_wider(names_from = Year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    exp_Delta_lnRR = exp(Delta_lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_Delta_lnRR - 1) * 100, 1),
+    Diferencia_Significativa = ifelse(CI_lower > 0 | CI_upper < 0, "Sí", "No")
+  )
+
+# 6. Gráfico BACI con exp(ΔlnRR) ----
+ggplot(baci_data, aes(x = Tratamiento, y = Delta_lnRR, color = Tratamiento)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "fixed") +
+  labs(
+    title = "CWM-Browsing - Cambio en el efecto entre años (ΔlnRR)",
+    x = "Tratamiento",
+    y = "Cambio relativo (2022 vs 2021)"
+  ) +
+  theme_minimal()
+
+# 7. Tabla final y exportación ----
+browsing_baci_results <- baci_data %>%
+  select(
+    Tratamiento, Variable,
+    lnRR_2021, lnRR_2022, Delta_lnRR, Delta_var,
+    exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio, Diferencia_Significativa
+  )
+
+# Guardar como CSV
+write.csv(browsing_baci_results,
+          "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/browsing_baci_results.csv",
+          row.names = FALSE)
+
+
+tabla_final <- browsing_baci_results %>%
+ gt::gt() %>%
+  gt::tab_header(
+    title = gt::md("**CWM-BROWSING - Resultados del análisis BACI (exp(lnRR))**"),
+    subtitle = gt::md("Comparación de tratamientos vs control")
+  ) %>%
+  fmt_number(columns = c(lnRR_2021, lnRR_2022, Delta_lnRR), decimals = 3) %>%
+  fmt_number(columns = c(exp_Delta_lnRR, exp_CI_lower, exp_CI_upper), decimals = 2) %>%
+  data_color(
+    columns = vars(Diferencia_Significativa),
+    colors = scales::col_factor(
+      palette = c("Sí" = "#15607A", "No" = "lightgray"),
+      domain = c("Sí", "No")
+    )
+  )
+tabla_final
+```
+BACI FRUIT-SET & SEED-SET
+```{r}
+summary_stats<-fruitset_seedset_stats
+# 1. Definir las variables a analizar
+metricas <- c( "fs_lad_total", "fs_pop_total")
+
+# 2. Crear un dataframe vacío para almacenar resultados
+results <- data.frame()
+
+# 3. Análisis para Toledo (high/hyper vs control)
+for (metrica in metricas) {
+  
+  # HIGH vs CONTROL
+  high <- escalc(
+    measure = "ROM",
+    m1i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "high"],
+    m2i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "control"],
+    sd1i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "high"],
+    sd2i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "control"],
+    n1i = summary_stats[[paste0("n_", metrica)]][summary_stats$treatment == "high"],
+    n2i = summary_stats[[paste0("n_", metrica)]][summary_stats$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Tratamiento = "high",
+      Variable = metrica,
+      Year = summary_stats$year[summary_stats$treatment == "high"],
+      Control = "control"
+    )
+  
+  # HYPER vs CONTROL
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "hyper"],
+    m2i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "control"],
+    sd1i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "hyper"],
+    sd2i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "control"],
+    n1i = summary_stats[[paste0("n_", metrica)]][summary_stats$treatment == "hyper"],
+    n2i = summary_stats[[paste0("n_", metrica)]][summary_stats$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Tratamiento = "hyper",
+      Variable = metrica,
+      Year = summary_stats$year[summary_stats$treatment == "hyper"],
+      Control = "control"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+
+# 3. Transformar a exp(lnRR) y calcular IC ----
+results <- results %>% 
+  rename(lnRR = yi, var_lnRR = vi) %>% 
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# Gráfico lnRR
+
+# Reasignar etiquetas de las variables
+results$Variable <- factor(
+  results$Variable,
+  levels = c("fs_lad_total", "fs_pop_total"),
+  labels = c("C.ladanifer (low palatability)", "Fruit Set C.populifolius (high palatability)")
+)
+
+# Reasignar etiquetas de los grupos en la leyenda
+results$Grupo <- factor(
+  results$Grupo,
+  levels = c("high vs control", "hyper vs control"),
+  labels = c("Quintos de Mora - high vs control", 
+             "Quintos de Mora - hyper vs control")
+)
+
+plot_fruitset_lnRR <- ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "free_y", ncol = 1) +
+  labs(
+    title = "Fruit Set - Treatment Effect Size = lnRR ± IC 95%",
+    x = "Time",
+    y = "lnRR",
+    color = NULL
+  ) +
+   scale_x_discrete(labels = c("2021" = "Before", "2022" = "After")) +
+  # ESCALA DE COLORES ROJO Y VERDE
+  scale_color_manual(
+    values = c(
+      "Quintos de Mora - high vs control" = "#E87E72",    # Rojo
+      "Quintos de Mora - hyper vs control" = "#86AD34"    # Verde
+    )
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_fruitset_lnRR.png",
+plot = plot_fruitset_lnRR,
+width = 5, height = 8, units = "in", dpi = 300)
+
+# 5. Análisis BACI con exp(ΔlnRR) ----
+baci_data <- results %>%
+  select(Tratamiento, Variable, Year, lnRR, var_lnRR) %>%
+  pivot_wider(names_from = Year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    exp_Delta_lnRR = exp(Delta_lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_Delta_lnRR - 1) * 100, 1),
+    Diferencia_Significativa = ifelse(CI_lower > 0 | CI_upper < 0, "Sí", "No")
+  )
+
+# 6. Gráfico BACI con exp(ΔlnRR) ----
+ggplot(baci_data, aes(x = Tratamiento, y = Delta_lnRR, color = Tratamiento)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "fixed") +
+  labs(
+    title = "FRUIT SET - Cambio en el efecto entre años (ΔlnRR)",
+    x = "Tratamiento",
+    y = "Cambio relativo (2022 vs 2021)"
+  ) +
+  theme_minimal()
+
+# 7. Tabla final y exportación ----
+fruitset_baci_results <- baci_data %>%
+  select(
+    Tratamiento, Variable,
+    lnRR_2021, lnRR_2022, Delta_lnRR, Delta_var,
+    exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio, Diferencia_Significativa
+  )
+
+# Guardar como CSV
+write.csv(fruitset_baci_results,
+          "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/fruitset_baci_results.csv",
+          row.names = FALSE)
+
+# Tabla visual con gt
+tabla_final <- fruitset_baci_results %>%
+  gt::gt() %>%
+  gt::tab_header(
+    title = "FRUIT SET- Resultados del análisis BACI (exp(lnRR))",
+    subtitle = "Comparación de tratamientos vs control"
+  ) %>%
+  fmt_number(columns = c(lnRR_2021, lnRR_2022, Delta_lnRR), decimals = 3) %>%
+  fmt_number(columns = c(exp_Delta_lnRR, exp_CI_lower, exp_CI_upper), decimals = 2) %>%
+  data_color(
+    columns = Diferencia_Significativa,
+    colors = scales::col_factor(palette = c("Sí" = "#15607A", "No" = "lightgray"), domain = c("Sí", "No"))
+  )
+  
+tabla_final
+```
+BACI NETWORKS 
+```{r}
+summary_stats<-networks_stats
+# 1. Definir las variables a analizar
+metricas <- c("Wconnectance", "interaction_evenness", "modularity", "riqueza_interacciones", "especies_polinizadores", "especies_plantas")
+
+# 2. Crear un dataframe vacío para almacenar resultados
+results <- data.frame()
+
+# 3. Análisis para Toledo (high/hyper vs control)
+for (metrica in metricas) {
+  
+  # HIGH vs CONTROL
+  high <- escalc(
+    measure = "ROM",
+    m1i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "high"],
+    m2i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "control"],
+    sd1i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "high"],
+    sd2i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "control"],
+    n1i = summary_stats$n_samples[summary_stats$treatment == "high"],
+    n2i = summary_stats$n_samples[summary_stats$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Tratamiento = "high",
+      Variable = metrica,
+      Year = summary_stats$year[summary_stats$treatment == "high"],
+      Control = "control"
+    )
+  
+  # HYPER vs CONTROL
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "hyper"],
+    m2i = summary_stats[[paste0("mean_", metrica)]][summary_stats$treatment == "control"],
+    sd1i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "hyper"],
+    sd2i = summary_stats[[paste0("sd_", metrica)]][summary_stats$treatment == "control"],
+    n1i = summary_stats$n_samples[summary_stats$treatment == "hyper"],
+    n2i = summary_stats$n_samples[summary_stats$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Tratamiento = "hyper",
+      Variable = metrica,
+      Year = summary_stats$year[summary_stats$treatment == "hyper"],
+      Control = "control"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+
+# 3. Transformar a exp(lnRR) y calcular IC ----
+results <- results %>% 
+  rename(lnRR = yi, var_lnRR = vi) %>% 
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# Gráfico lnRR
+
+# Reasignar etiquetas de las variables
+results$Variable <- factor(
+  results$Variable,
+  levels = c("Wconnectance", "interaction_evenness", "modularity", "riqueza_interacciones", "especies_polinizadores", "especies_plantas"),
+  labels = c("Weighted Connectance", "Interaction Evenness", "Modularity", "Interaction Richness", "Pollinator Richness", "Flowering Species Richnes")
+)
+
+# Reasignar etiquetas de los grupos en la leyenda
+results$Grupo <- factor(
+  results$Grupo,
+  levels = c("high vs control", "hyper vs control"),
+  labels = c("Quintos de Mora - high vs control", 
+             "Quintos de Mora - hyper vs control")
+)
+
+plot_networks_lnRR <- ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "free_y", ncol = 1) +
+  labs(
+    title = "Plant-Pollinator Networks
+  Treatment Effect Size = lnRR ± IC 95%",
+    x = "Time",
+    y = "lnRR",
+    color = NULL
+  ) +
+   scale_x_discrete(labels = c("2021" = "Before", "2022" = "After")) +
+  # ESCALA DE COLORES ROJO Y VERDE
+  scale_color_manual(
+    values = c(
+      "Quintos de Mora - high vs control" = "#E87E72",    # Rojo
+      "Quintos de Mora - hyper vs control" = "#86AD34"    # Verde
+    )
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_networks_lnRR.png",
+plot = plot_networks_lnRR,
+width = 5, height = 8, units = "in", dpi = 300)
+
+# 5. Análisis BACI con exp(ΔlnRR) ----
+baci_data <- results %>%
+  select(Tratamiento, Variable, Year, lnRR, var_lnRR) %>%
+  pivot_wider(names_from = Year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    exp_Delta_lnRR = exp(Delta_lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_Delta_lnRR - 1) * 100, 1),
+    Diferencia_Significativa = ifelse(CI_lower > 0 | CI_upper < 0, "Sí", "No")
+  )
+
+# 6. Gráfico BACI con exp(ΔlnRR) ----
+ggplot(baci_data, aes(x = Tratamiento, y = Delta_lnRR, color = Tratamiento)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "fixed") +
+  labs(
+    title = "Pollinator Networks - Cambio en el efecto entre años (exp(ΔlnRR))",
+    x = "Tratamiento",
+    y = "Cambio relativo (2022 vs 2021)"
+  ) +
+  theme_minimal()
+
+ # 7. Tabla final y exportación ----
+ networks_baci_results <- baci_data %>%
+  select(
+    Tratamiento, Variable,
+    lnRR_2021, lnRR_2022, Delta_lnRR, Delta_var,
+    exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio, Diferencia_Significativa
+  )
+
+# Guardar como CSV
+write.csv(networks_baci_results,
+          "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/networks_baci_results.csv",
+          row.names = FALSE)
+
+# Tabla visual con gt
+tabla_final <- networks_baci_results %>%
+  gt::gt() %>%
+  gt::tab_header(
+    title = "Networks- Resultados del análisis BACI (exp(lnRR))",
+    subtitle = "Comparación de tratamientos vs control"
+ ) %>%
+ fmt_number(columns = c(lnRR_2021, lnRR_2022, Delta_lnRR), decimals = 3) %>%
+  fmt_number(columns = c(exp_Delta_lnRR, exp_CI_lower, exp_CI_upper), decimals = 2) %>%
+ data_color(
+    columns = Diferencia_Significativa,
+    colors = scales::col_factor(palette = c("Sí" = "#15607A", "No" = "lightgray"),  domain = c("Sí", "No")))
+
+tabla_final
+```
+BACI TEABAGS
+```{r}
+summary_stats <- teabags
+metricas <- c("s","k")
+results <- data.frame()
+
+# Toledo
+for (metrica in metricas) {
+  toledo <- summary_stats %>% filter(site == "toledo")
+  
+  high <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "high"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "high"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo[[paste0("n_", metrica)]][toledo$treatment == "high"],
+    n2i = toledo[[paste0("n_", metrica)]][toledo$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Toledo",
+      Tratamiento = "high",
+      Variable = metrica,
+      Year = toledo$year[toledo$treatment == "high"],
+      Control = "control"
+    )
+  
+  hyper <- escalc(
+    measure = "ROM",
+    m1i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "hyper"],
+    m2i = toledo[[paste0("mean_", metrica)]][toledo$treatment == "control"],
+    sd1i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "hyper"],
+    sd2i = toledo[[paste0("sd_", metrica)]][toledo$treatment == "control"],
+    n1i = toledo[[paste0("n_", metrica)]][toledo$treatment == "hyper"],
+    n2i = toledo[[paste0("n_", metrica)]][toledo$treatment == "control"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Toledo",
+      Tratamiento = "hyper",
+      Variable = metrica,
+      Year = toledo$year[toledo$treatment == "hyper"],
+      Control = "control"
+    )
+  
+  results <- bind_rows(results, high, hyper)
+}
+
+# Valencia
+for (metrica in metricas) {
+  valencia <- summary_stats %>% filter(site == "valencia")
+  
+  high_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "high"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_high"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "high"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_high"],
+    n1i = valencia[[paste0("n_", metrica)]][valencia$treatment == "high"],
+    n2i = valencia[[paste0("n_", metrica)]][valencia$treatment == "control_high"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Valencia",
+      Tratamiento = "high",
+      Variable = metrica,
+      Year = valencia$year[valencia$treatment == "high"],
+      Control = "control_high"
+    )
+  
+  hyper_val <- escalc(
+    measure = "ROM",
+    m1i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "hyper"],
+    m2i = valencia[[paste0("mean_", metrica)]][valencia$treatment == "control_hyper"],
+    sd1i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "hyper"],
+    sd2i = valencia[[paste0("sd_", metrica)]][valencia$treatment == "control_hyper"],
+    n1i = valencia[[paste0("n_", metrica)]][valencia$treatment == "hyper"],
+    n2i = valencia[[paste0("n_", metrica)]][valencia$treatment == "control_hyper"]
+  ) %>%
+    as.data.frame() %>%
+    mutate(
+      Site = "Valencia",
+      Tratamiento = "hyper",
+      Variable = metrica,
+      Year = valencia$year[valencia$treatment == "hyper"],
+      Control = "control_hyper"
+    )
+  
+  results <- bind_rows(results, high_val, hyper_val)
+}
+
+# Cálculo de IC y transformación exponencial
+results <- results %>%
+  rename(lnRR = yi, var_lnRR = vi) %>%
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    Grupo = paste(Site, "-", Tratamiento, "vs", Control),
+    exp_lnRR = exp(lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_lnRR - 1) * 100, 1)
+  )
+
+# Reasignar etiquetas de las variables
+results$Variable <- factor(
+  results$Variable,
+  levels = c("s","k"),
+  labels = c("Organic material stabilization (S)", "Organic material decomposition (K)")
+)
+
+# Reasignar etiquetas de los grupos en la leyenda
+results$Grupo <- factor(
+  results$Grupo,
+  levels = c(
+    "Toledo - high vs control",
+    "Toledo - hyper vs control",
+    "Valencia - high vs control_high",
+    "Valencia - hyper vs control_hyper"
+  ),
+  labels = c(
+    "Quintos de Mora - high vs control",
+    "Quintos de Mora - hyper vs control",
+    "Muela de Cortes - high vs control",
+    "Muela de Cortes - hyper vs control"
+  )
+)
+
+plot_teabags_lnRR <- ggplot(results, aes(x = factor(Year), y = lnRR, color = Grupo)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "free_y", ncol = 1) +
+  labs(
+    title = "Soil Organic Matter Decomposition Parameters
+  Treatment Effect Size = lnRR ± IC 95%",
+    x = "Time",
+    y = "lnRR",
+    color = NULL
+  ) +
+   scale_x_discrete(labels = c("2021" = "Before", "2022" = "After")) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 8),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.5, "lines"),
+    legend.key.height = unit(0.7, "lines"),
+    legend.box = "horizontal",
+    legend.box.just = "center",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+
+ggsave(
+filename =  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/plot_teabags_lnRR.png",
+plot = plot_teabags_lnRR,
+width = 6, height = 8, units = "in", dpi = 300)
+
+ # Cálculo de cambios BACI
+baci_data <- results %>%
+  select(Site, Tratamiento, Variable, Year, lnRR, var_lnRR) %>%
+  pivot_wider(names_from = Year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    exp_Delta_lnRR = exp(Delta_lnRR),
+    exp_CI_lower = exp(CI_lower),
+    exp_CI_upper = exp(CI_upper),
+    Porcentaje_Cambio = round((exp_Delta_lnRR - 1) * 100, 1),
+    Diferencia_Significativa = ifelse(CI_lower > 0 | CI_upper < 0, "Sí", "No")
+  )
+
+# Gráfico de cambio entre años
+ggplot(baci_data, aes(x = Tratamiento, y = Delta_lnRR, color = Site)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~Variable, scales = "fixed") +
+  # ylim(0.4, 4) +
+  labs(
+    title = "Tea-bags - Cambio en el efecto entre años (exp(ΔlnRR))",
+    x = "Tratamiento",
+    y = "Cambio relativo (2022 vs 2021)"
+  ) +
+  theme_minimal()
+
+# Tabla resumen
+tabla_final <- baci_data %>%
+  select(Site, Tratamiento, Variable,
+         lnRR_2021, lnRR_2022, Delta_lnRR,
+         CI_lower, CI_upper,
+         exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+         Porcentaje_Cambio, Diferencia_Significativa) %>%
+  gt::gt() %>%
+  gt::tab_header(
+    title = "Tea - Bags - Resultados del Análisis de lnRR entre Años",
+    subtitle = "Transformación exponencial y cambio porcentual (2022 vs 2021)"
+  ) %>%
+  cols_label(
+    Site = "Sitio",
+    Tratamiento = "Tratamiento",
+    Variable = "Métrica",
+    lnRR_2021 = "lnRR 2021",
+    lnRR_2022 = "lnRR 2022",
+    Delta_lnRR = "ΔlnRR",
+    CI_lower = "IC Inferior",
+    CI_upper = "IC Superior",
+    exp_Delta_lnRR = "exp(ΔlnRR)",
+    exp_CI_lower = "exp(IC Inf.)",
+    exp_CI_upper = "exp(IC Sup.)",
+    Porcentaje_Cambio = "% Cambio Relativo",
+    Diferencia_Significativa = "¿Significativo?"
+  ) %>%
+  fmt_number(columns = where(is.numeric), decimals = 3) %>%
+  data_color(
+    columns = Diferencia_Significativa,
+    colors = scales::col_factor(
+      palette = c("Sí" = "lightblue", "No" = "lightgray"),
+      domain = c("Sí", "No")
+    )
+  )
+
+tabla_final
+
+# Guardar la tabla final como CSV
+teabags_baci_results <- baci_data %>%
+  select(
+    Site, Tratamiento, Variable,
+    lnRR_2021, lnRR_2022, Delta_lnRR, Delta_var,
+    CI_lower, CI_upper,
+    exp_Delta_lnRR, exp_CI_lower, exp_CI_upper,
+    Porcentaje_Cambio, Diferencia_Significativa
+  )
+
+# Crear la ruta completa (asegúrate de que el directorio existe)
+ruta_csv <- "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/teabags_baci_results.csv"
+
+# Guardar el archivo
+write.csv(teabags_baci_results, file = ruta_csv, row.names = FALSE)
+```
+

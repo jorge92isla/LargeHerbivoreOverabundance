@@ -1,0 +1,194 @@
+---
+title: "Incremento_macro_weights"
+author: "Jorge"
+date: "2025-01-22"
+output: html_document
+---
+
+Incremento
+Exploration of terrestial macro-invertebrate modelated- weights
+
+
+## R Markdown
+
+
+```{r data loafing}
+library(readxl)
+
+# Cargar la tercera hoja del archivo Excel
+pitfalls_data_general_incremento <- read_excel("pitfalls_data_general_incremento.xlsx",
+  sheet = 5)
+names(pitfalls_data_general_incremento)
+
+#Cambio fecha tipo
+pitfalls_data_general_incremento$date <- as.Date(
+  pitfalls_data_general_incremento$date, 
+  origin = "1899-12-30"
+)
+```
+
+
+```{r some plots of target measure}
+# Algunos gráficos de las medidas objetivo
+hist(pitfalls_data_general_incremento$total_area_mm2, breaks = 100)
+hist(pitfalls_data_general_incremento$weight_model, breaks = 100)
+# Crear un gráfico de dispersión
+plot(
+  pitfalls_data_general_incremento$total_area_mm2,
+  pitfalls_data_general_incremento$weight_model,
+  main = "Gráfico de correlación entre total_area_mm2 y weight_model",
+  xlab = "Área total (mm²)",
+  ylab = "Peso modelado",
+  pch = 16,        # Forma de los puntos
+  col = "blue",    # Color de los puntos
+  cex = 0.7        # Tamaño de los puntos
+)
+
+# Agregar una línea de tendencia
+abline(
+  lm(pitfalls_data_general_incremento$weight_model ~ pitfalls_data_general_incremento$total_area_mm2),
+  col = "red",
+  lwd = 2
+)
+
+```
+
+Vamos a ver como varía la biomasa total
+```{r}
+library (dplyr)
+# Resumir datos y agregar la columna "Year"
+pitfall_summary <- pitfalls_data_general_incremento %>%
+  group_by(sample, site_code) %>%
+  summarise(
+    num_insects = n(),
+    total_biomass = sum(weight_model, na.rm = TRUE),
+    sd_weight = sd(weight_model, na.rm = TRUE),
+    earliest_date = min(date, na.rm = TRUE)  # Fecha más temprana
+  ) %>%
+  mutate(
+    year = format(earliest_date, "%Y")  # Extraer el año de earliest_date
+  ) %>%
+  mutate(tratamiento = case_when(
+    site_code == "MC" ~ substr(sample, 4, 5),
+    site_code == "QM" ~ substr(sample, 4, 4),
+    TRUE ~ NA_character_
+  ))
+
+# Verificar el resultado
+head(pitfall_summary)
+
+
+```
+
+
+```{r Genero dataset a nivel de pitfall}
+library(ggplot2)
+
+# Boxplot para la biomasa total en QM, separado por año
+ggplot(pitfall_summary %>% filter(site_code == "QM"), aes(x = tratamiento, y = total_biomass)) +
+  geom_boxplot() +
+  facet_wrap(~ year) +  # Crear un panel por año
+  labs(
+    title = "Distribución de la biomasa total por tratamiento en QM (por año)",
+    x = "Tratamiento",
+    y = "Biomasa total"
+  ) +
+  theme_minimal()
+
+# Boxplot para la biomasa total en MC, separado por año
+ggplot(pitfall_summary %>% filter(site_code == "MC"), aes(x = tratamiento, y = total_biomass)) +
+  geom_boxplot() +
+  facet_wrap(~ year) +  # Crear un panel por año
+  labs(
+    title = "Distribución de la biomasa total por tratamiento en MC (por año)",
+    x = "Tratamiento",
+    y = "Biomasa total"
+  ) +
+  theme_minimal()
+
+```
+
+```{r}
+# Filtrar los datos para el site_code "QM"
+qm_data <- pitfall_summary %>%
+  filter(site_code == "QM")
+# Filtrar los datos para el site_code "MC"
+mc_data <- pitfall_summary %>%
+  filter(site_code == "MC")
+
+
+# Histograma para QM
+ggplot(qm_data, aes(x = total_biomass)) +
+  geom_histogram(binwidth = 0.05, fill = "steelblue", color = "black", alpha = 0.7) +
+  labs(
+    title = "Distribución de la biomasa total en QM",
+    x = "Biomasa total",
+    y = "Frecuencia"
+  ) +
+  theme_minimal()
+
+# Histograma para MC
+ggplot(mc_data, aes(x = total_biomass)) +
+  geom_histogram(binwidth = 0.05, fill = "darkorange", color = "black", alpha = 0.7) +
+  labs(
+    title = "Distribución de la biomasa total en MC",
+    x = "Biomasa total",
+    y = "Frecuencia"
+  ) +
+  theme_minimal()
+```
+Modelo para Quintos de Mora
+```{r}
+library(DHARMa)
+library(emmeans)
+
+modelo_biomasa <- glm(total_biomass ~ tratamiento + factor (year), 
+                      data = qm_data, 
+                      family = Gamma(link = "log"))
+
+# Resumen del modelo
+summary(modelo_biomasa)
+
+# Model testing
+residuos <- simulateResiduals(modelo_biomasa)
+plot(residuos)
+
+#  Calcular las emmeans para el tratamiento
+emmeans_model <- emmeans(modelo_biomasa, ~ tratamiento, type = "response")
+
+# Ver los resultados
+summary(emmeans_model)
+
+# Graficar las emmeans para el tratamiento
+plot(emmeans_model)
+
+pairs(emmeans_model)
+```
+
+```{r}
+# Filtrar los datos para MC y los tratamientos de interés
+mc_data <- pitfall_summary %>% filter(site_code == "MC")
+
+modelo_biomasa <- glm(total_biomass ~ tratamiento + factor (year), 
+                      data = mc_data, 
+                      family = Gamma(link = "log"))
+
+# Resumen del modelo
+summary(modelo_biomasa)
+
+# Model testing
+residuos <- simulateResiduals(modelo_biomasa)
+plot(residuos)
+
+#  Calcular las emmeans para el tratamiento
+emmeans_model <- emmeans(modelo_biomasa, ~ tratamiento, type = "response")
+
+# Ver los resultados
+summary(emmeans_model)
+
+# Graficar las emmeans para el tratamiento
+plot(emmeans_model)
+
+pairs(emmeans_model)
+```
+

@@ -1,0 +1,6 @@
+	 Anaspidinae	 Andrena_msp1	 Andrena_msp5	 Anthophora_sp	 Apis_mellifera	 Bibionidae	 Bombus_terrestris	 Bombylius_sp	 Bombylius_major	 Braconidae_msp1	 Buprestidae	 Camponotus_cruentatus	 Camponotus_pilicornis	 Chrysanthia_sp	 Conopidae_msp1	 Diptera_s	 Diptera_ms	 Empididae	 Enicopus_sp	 Eristalis_tenax	 Eucera_msp1	 Falsomelyris_sp	 Formica_gerardi	 Halictus_msp1	 Heliotaurus_ruficollis	 Heterocera	 Iberoformica_subrufa	 Lasioglossum_msp1	 Lasioglossum_msp2	 Lucilia_sp	 Myothropa_florea	 Nomada_sp	 Oxycera_trilineata	 Plagiolepis_schmitzii	 Protaetia_sp	 Protosmia_msp1	 Stenurella_approximans	 Stictoleptura_cordigera	 Tettigoniidae	 Tettigonia_viridissima	 Usia_sp
+Cla	8	0.5	1	0	3.5	0.5	0	2	0.5	0.5	0.5	5.5	0.5	1	0.5	11	12	2	2	8	0.5	6	11.5	0.5	102.5	0.5	4.5	18.5	1	0.5	0.5	0.5	0.5	1.5	0.5	0	0.5	1.5	2	0.5	4
+Cpop	0.833333333	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0.166666667
+Tmas	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0.168732782	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0.168732782	0	0.843663912	0	0.168732782	0	0	0	0	0
+Cyt	0	0	0	0	0	0	0	0	0	0	0	16.5	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+Orob	0	0	0	0.333333333	1.666666667	0	0.666666667	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0.333333333	0	0	0	0	0	0	0	0	0	0	0	0	0

@@ -1,0 +1,211 @@
+"site","habitat","treatment","plot","sampling_unit","year","date","variable_type","variable_name","level","observation","units","comments","author_code"
+"toledo",NA,"hyper",NA,"48","2022","2022_06_07","fuego","FMC","cistus_ladanifer",118.9,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"hyper",NA,"48","2022","2022_06_07","fuego","PHRR","cistus_ladanifer",90.8106456505714,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"48","2022","2022_06_07","fuego","TTI","cistus_ladanifer",89,"Time to Ignition (s)",NA,NA
+"toledo",NA,"hyper",NA,"48","2022","2022_06_07","fuego","mean_HRR","cistus_ladanifer",62.0446367452095,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"48","2022","2022_06_07","fuego","AEHC","cistus_ladanifer",4.46243112559088,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"hyper",NA,"48","2022","2022_06_07","fuego","THR","cistus_ladanifer",3.62686375215761,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"hyper",NA,"48","2022","2022_06_07","fuego","mean_MLR","cistus_ladanifer",0.140637205614377,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"hyper",NA,"44","2022","2022_06_07","fuego","FMC","cistus_ladanifer",145.3,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"hyper",NA,"44","2022","2022_06_07","fuego","PHRR","cistus_ladanifer",74.4953073402632,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"44","2022","2022_06_07","fuego","TTI","cistus_ladanifer",24,"Time to Ignition (s)",NA,NA
+"toledo",NA,"hyper",NA,"44","2022","2022_06_07","fuego","mean_HRR","cistus_ladanifer",53.2308505232288,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"44","2022","2022_06_07","fuego","AEHC","cistus_ladanifer",3.60513573099255,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"hyper",NA,"44","2022","2022_06_07","fuego","THR","cistus_ladanifer",1.27754041255749,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"hyper",NA,"44","2022","2022_06_07","fuego","mean_MLR","cistus_ladanifer",0.149299083333333,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"hyper",NA,"53","2022","2022_06_07","fuego","FMC","cistus_ladanifer",110,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"hyper",NA,"53","2022","2022_06_07","fuego","PHRR","cistus_ladanifer",94.4868063538256,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"53","2022","2022_06_07","fuego","TTI","cistus_ladanifer",166,"Time to Ignition (s)",NA,NA
+"toledo",NA,"hyper",NA,"53","2022","2022_06_07","fuego","mean_HRR","cistus_ladanifer",55.7636989786691,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"53","2022","2022_06_07","fuego","AEHC","cistus_ladanifer",5.12274183363381,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"hyper",NA,"53","2022","2022_06_07","fuego","THR","cistus_ladanifer",6.97883093647087,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"hyper",NA,"53","2022","2022_06_07","fuego","mean_MLR","cistus_ladanifer",0.112296423443775,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"hyper",NA,"66","2022","2022_06_07","fuego","FMC","cistus_ladanifer",110.5,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"hyper",NA,"66","2022","2022_06_07","fuego","PHRR","cistus_ladanifer",59.1056717,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"66","2022","2022_06_07","fuego","TTI","cistus_ladanifer",70,"Time to Ignition (s)",NA,NA
+"toledo",NA,"hyper",NA,"66","2022","2022_06_07","fuego","mean_HRR","cistus_ladanifer",42.7299006387531,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"66","2022","2022_06_07","fuego","AEHC","cistus_ladanifer",5.31933679551066,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"hyper",NA,"66","2022","2022_06_07","fuego","THR","cistus_ladanifer",3.00509424265682,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"hyper",NA,"66","2022","2022_06_07","fuego","mean_MLR","cistus_ladanifer",0.0960045845238095,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"hyper",NA,"59","2022","2022_06_07","fuego","FMC","cistus_ladanifer",114.2,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"hyper",NA,"59","2022","2022_06_07","fuego","PHRR","cistus_ladanifer",104.522741766489,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"59","2022","2022_06_07","fuego","TTI","cistus_ladanifer",31,"Time to Ignition (s)",NA,NA
+"toledo",NA,"hyper",NA,"59","2022","2022_06_07","fuego","mean_HRR","cistus_ladanifer",67.9725005985981,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"59","2022","2022_06_07","fuego","AEHC","cistus_ladanifer",5.77085172375726,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"hyper",NA,"59","2022","2022_06_07","fuego","THR","cistus_ladanifer",5.77455528430417,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"hyper",NA,"59","2022","2022_06_07","fuego","mean_MLR","cistus_ladanifer",0.121341160984392,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"hyper",NA,"82","2022","2022_06_07","fuego","FMC","quercus_ilex",64.08,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"hyper",NA,"82","2022","2022_06_07","fuego","PHRR","quercus_ilex",97.6975504395315,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"82","2022","2022_06_07","fuego","TTI","quercus_ilex",162,"Time to Ignition (s)",NA,NA
+"toledo",NA,"hyper",NA,"82","2022","2022_06_07","fuego","mean_HRR","quercus_ilex",42.8184000711558,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"82","2022","2022_06_07","fuego","AEHC","quercus_ilex",6.09766095828924,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"hyper",NA,"82","2022","2022_06_07","fuego","THR","quercus_ilex",6.9383136468118,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"hyper",NA,"82","2022","2022_06_07","fuego","mean_MLR","quercus_ilex",0.0706190434670782,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"hyper",NA,"160","2022","2022_06_07","fuego","FMC","quercus_ilex",96.6,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"hyper",NA,"160","2022","2022_06_07","fuego","PHRR","quercus_ilex",107.232345277975,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"160","2022","2022_06_07","fuego","TTI","quercus_ilex",54,"Time to Ignition (s)",NA,NA
+"toledo",NA,"hyper",NA,"160","2022","2022_06_07","fuego","mean_HRR","quercus_ilex",77.6377039968777,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"160","2022","2022_06_07","fuego","AEHC","quercus_ilex",4.92893584717961,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"hyper",NA,"160","2022","2022_06_07","fuego","THR","quercus_ilex",4.1924360158314,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"hyper",NA,"160","2022","2022_06_07","fuego","mean_MLR","quercus_ilex",0.159392132716049,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"hyper",NA,"154","2022","2022_06_07","fuego","FMC","quercus_ilex",93.13,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"hyper",NA,"154","2022","2022_06_07","fuego","PHRR","quercus_ilex",35.3443285526747,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"154","2022","2022_06_07","fuego","TTI","quercus_ilex",7,"Time to Ignition (s)",NA,NA
+"toledo",NA,"hyper",NA,"154","2022","2022_06_07","fuego","mean_HRR","quercus_ilex",32.2417127785568,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"154","2022","2022_06_07","fuego","AEHC","quercus_ilex",3.48481018845043,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"hyper",NA,"154","2022","2022_06_07","fuego","THR","quercus_ilex",0.225691989449898,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"hyper",NA,"154","2022","2022_06_07","fuego","mean_MLR","quercus_ilex",0.0808758154761904,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"hyper",NA,"157","2022","2022_06_07","fuego","FMC","quercus_ilex",90.6,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"hyper",NA,"157","2022","2022_06_07","fuego","PHRR","quercus_ilex",39.194547283218,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"157","2022","2022_06_07","fuego","TTI","quercus_ilex",NA,"Time to Ignition (s)",NA,NA
+"toledo",NA,"hyper",NA,"157","2022","2022_06_07","fuego","mean_HRR","quercus_ilex",13.94616806,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"157","2022","2022_06_07","fuego","AEHC","quercus_ilex",2.33490681989147,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"hyper",NA,"157","2022","2022_06_07","fuego","THR","quercus_ilex",4.45353363607344,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"hyper",NA,"157","2022","2022_06_07","fuego","mean_MLR","quercus_ilex",0.0601246995833333,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"hyper",NA,"155","2022","2022_06_07","fuego","FMC","quercus_ilex",86.05,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"hyper",NA,"155","2022","2022_06_07","fuego","PHRR","quercus_ilex",52.1594945884205,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"155","2022","2022_06_07","fuego","TTI","quercus_ilex",37,"Time to Ignition (s)",NA,NA
+"toledo",NA,"hyper",NA,"155","2022","2022_06_07","fuego","mean_HRR","quercus_ilex",33.7932558561783,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"hyper",NA,"155","2022","2022_06_07","fuego","AEHC","quercus_ilex",2.65095016928453,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"hyper",NA,"155","2022","2022_06_07","fuego","THR","quercus_ilex",2.12909119623782,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"hyper",NA,"155","2022","2022_06_07","fuego","mean_MLR","quercus_ilex",0.127348490643448,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"high",NA,"274","2022","2022_06_07","fuego","FMC","cistus_ladanifer",101,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"high",NA,"274","2022","2022_06_07","fuego","PHRR","cistus_ladanifer",147.756592795174,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"274","2022","2022_06_07","fuego","TTI","cistus_ladanifer",70,"Time to Ignition (s)",NA,NA
+"toledo",NA,"high",NA,"274","2022","2022_06_07","fuego","mean_HRR","cistus_ladanifer",101.70565780455,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"274","2022","2022_06_07","fuego","AEHC","cistus_ladanifer",10.6888979266561,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"high",NA,"274","2022","2022_06_07","fuego","THR","cistus_ladanifer",7.1193960463185,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"high",NA,"274","2022","2022_06_07","fuego","mean_MLR","cistus_ladanifer",0.0947556767857143,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"high",NA,"273","2022","2022_06_07","fuego","FMC","cistus_ladanifer",108.3,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"high",NA,"273","2022","2022_06_07","fuego","PHRR","cistus_ladanifer",90.2745862988616,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"273","2022","2022_06_07","fuego","TTI","cistus_ladanifer",41,"Time to Ignition (s)",NA,NA
+"toledo",NA,"high",NA,"273","2022","2022_06_07","fuego","mean_HRR","cistus_ladanifer",65.952121093221,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"273","2022","2022_06_07","fuego","AEHC","cistus_ladanifer",5.09248401731826,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"high",NA,"273","2022","2022_06_07","fuego","THR","cistus_ladanifer",2.0924823433211,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"high",NA,"273","2022","2022_06_07","fuego","mean_MLR","cistus_ladanifer",0.129904429918699,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"high",NA,"184","2022","2022_06_07","fuego","FMC","cistus_ladanifer",119.6,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"high",NA,"184","2022","2022_06_07","fuego","PHRR","cistus_ladanifer",108.059460681468,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"184","2022","2022_06_07","fuego","TTI","cistus_ladanifer",31,"Time to Ignition (s)",NA,NA
+"toledo",NA,"high",NA,"184","2022","2022_06_07","fuego","mean_HRR","cistus_ladanifer",70.4617965911398,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"184","2022","2022_06_07","fuego","AEHC","cistus_ladanifer",4.81456082700907,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"high",NA,"184","2022","2022_06_07","fuego","THR","cistus_ladanifer",2.18431569432533,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"high",NA,"184","2022","2022_06_07","fuego","mean_MLR","cistus_ladanifer",0.149117204301075,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"high",NA,"172","2022","2022_06_07","fuego","FMC","cistus_ladanifer",127.5,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"high",NA,"172","2022","2022_06_07","fuego","PHRR","cistus_ladanifer",93.1052899017775,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"172","2022","2022_06_07","fuego","TTI","cistus_ladanifer",67,"Time to Ignition (s)",NA,NA
+"toledo",NA,"high",NA,"172","2022","2022_06_07","fuego","mean_HRR","cistus_ladanifer",61.4790330573765,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"172","2022","2022_06_07","fuego","AEHC","cistus_ladanifer",8.25369155069999,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"high",NA,"172","2022","2022_06_07","fuego","THR","cistus_ladanifer",3.40302316336727,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"high",NA,"172","2022","2022_06_07","fuego","mean_MLR","cistus_ladanifer",0.0965107277310256,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"high",NA,"289","2022","2022_06_07","fuego","FMC","cistus_ladanifer",147,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"high",NA,"289","2022","2022_06_07","fuego","PHRR","cistus_ladanifer",99.2566189968801,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"289","2022","2022_06_07","fuego","TTI","cistus_ladanifer",34,"Time to Ignition (s)",NA,NA
+"toledo",NA,"high",NA,"289","2022","2022_06_07","fuego","mean_HRR","cistus_ladanifer",65.4259214483519,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"289","2022","2022_06_07","fuego","AEHC","cistus_ladanifer",4.43349716878772,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"high",NA,"289","2022","2022_06_07","fuego","THR","cistus_ladanifer",2.60535230811417,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"high",NA,"289","2022","2022_06_07","fuego","mean_MLR","cistus_ladanifer",0.148301444335512,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"high",NA,"336","2022","2022_06_07","fuego","FMC","quercus_ilex",91.9,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"high",NA,"336","2022","2022_06_07","fuego","PHRR","quercus_ilex",127.90744164525,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"336","2022","2022_06_07","fuego","TTI","quercus_ilex",16,"Time to Ignition (s)",NA,NA
+"toledo",NA,"high",NA,"336","2022","2022_06_07","fuego","mean_HRR","quercus_ilex",97.5632725541923,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"336","2022","2022_06_07","fuego","AEHC","quercus_ilex",4.42173049714212,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"high",NA,"336","2022","2022_06_07","fuego","THR","quercus_ilex",1.56101236086708,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"high",NA,"336","2022","2022_06_07","fuego","mean_MLR","quercus_ilex",0.223545171875,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"high",NA,"195","2022","2022_06_07","fuego","FMC","quercus_ilex",105.53,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"high",NA,"195","2022","2022_06_07","fuego","PHRR","quercus_ilex",59.3921458369897,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"195","2022","2022_06_07","fuego","TTI","quercus_ilex",57,"Time to Ignition (s)",NA,NA
+"toledo",NA,"high",NA,"195","2022","2022_06_07","fuego","mean_HRR","quercus_ilex",43.3437027486766,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"195","2022","2022_06_07","fuego","AEHC","quercus_ilex",5.57672279188147,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"high",NA,"195","2022","2022_06_07","fuego","THR","quercus_ilex",1.59759692603823,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"high",NA,"195","2022","2022_06_07","fuego","mean_MLR","quercus_ilex",0.0969302546470344,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"high",NA,"198","2022","2022_06_07","fuego","FMC","quercus_ilex",106,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"high",NA,"198","2022","2022_06_07","fuego","PHRR","quercus_ilex",85.7832258439461,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"198","2022","2022_06_07","fuego","TTI","quercus_ilex",51,"Time to Ignition (s)",NA,NA
+"toledo",NA,"high",NA,"198","2022","2022_06_07","fuego","mean_HRR","quercus_ilex",49.8700531695305,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"198","2022","2022_06_07","fuego","AEHC","quercus_ilex",3.07413094996314,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"high",NA,"198","2022","2022_06_07","fuego","THR","quercus_ilex",2.54337271164606,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"high",NA,"198","2022","2022_06_07","fuego","mean_MLR","quercus_ilex",0.159119111111111,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"high",NA,"197","2022","2022_06_07","fuego","FMC","quercus_ilex",125.4,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"high",NA,"197","2022","2022_06_07","fuego","PHRR","quercus_ilex",49.4408015122583,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"197","2022","2022_06_07","fuego","TTI","quercus_ilex",10,"Time to Ignition (s)",NA,NA
+"toledo",NA,"high",NA,"197","2022","2022_06_07","fuego","mean_HRR","quercus_ilex",40.9161392424196,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"197","2022","2022_06_07","fuego","AEHC","quercus_ilex",2.67659992911571,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"high",NA,"197","2022","2022_06_07","fuego","THR","quercus_ilex",0.409161392424195,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"high",NA,"197","2022","2022_06_07","fuego","mean_MLR","quercus_ilex",0.152354420833333,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"high",NA,"196","2022","2022_06_07","fuego","FMC","quercus_ilex",111.2,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"high",NA,"196","2022","2022_06_07","fuego","PHRR","quercus_ilex",94.934329488193,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"196","2022","2022_06_07","fuego","TTI","quercus_ilex",43,"Time to Ignition (s)",NA,NA
+"toledo",NA,"high",NA,"196","2022","2022_06_07","fuego","mean_HRR","quercus_ilex",65.5221826448396,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"high",NA,"196","2022","2022_06_07","fuego","AEHC","quercus_ilex",4.50512866127146,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"high",NA,"196","2022","2022_06_07","fuego","THR","quercus_ilex",2.8174538537281,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"high",NA,"196","2022","2022_06_07","fuego","mean_MLR","quercus_ilex",0.145708069767442,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"control",NA,"267","2022","2022_06_07","fuego","FMC","quercus_ilex",86.73,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"control",NA,"267","2022","2022_06_07","fuego","PHRR","quercus_ilex",101.903678516751,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"267","2022","2022_06_07","fuego","TTI","quercus_ilex",113,"Time to Ignition (s)",NA,NA
+"toledo",NA,"control",NA,"267","2022","2022_06_07","fuego","mean_HRR","quercus_ilex",63.4094146801937,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"267","2022","2022_06_07","fuego","AEHC","quercus_ilex",5.05090487109633,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"control",NA,"267","2022","2022_06_07","fuego","THR","quercus_ilex",7.03904638211678,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"control",NA,"267","2022","2022_06_07","fuego","mean_MLR","quercus_ilex",0.125008473348348,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"control",NA,"268","2022","2022_06_07","fuego","FMC","cistus_ladanifer",120.1,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"control",NA,"268","2022","2022_06_07","fuego","PHRR","cistus_ladanifer",110.455267830488,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"268","2022","2022_06_07","fuego","TTI","cistus_ladanifer",53,"Time to Ignition (s)",NA,NA
+"toledo",NA,"control",NA,"268","2022","2022_06_07","fuego","mean_HRR","cistus_ladanifer",63.1121631539745,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"268","2022","2022_06_07","fuego","AEHC","cistus_ladanifer",4.73745315000618,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"control",NA,"268","2022","2022_06_07","fuego","THR","cistus_ladanifer",3.35328832996029,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"control",NA,"268","2022","2022_06_07","fuego","mean_MLR","cistus_ladanifer",0.134835383647799,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"control",NA,"358","2022","2022_06_07","fuego","FMC","cistus_ladanifer",129.6,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"control",NA,"358","2022","2022_06_07","fuego","PHRR","cistus_ladanifer",111.920492913896,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"358","2022","2022_06_07","fuego","TTI","cistus_ladanifer",61,"Time to Ignition (s)",NA,NA
+"toledo",NA,"control",NA,"358","2022","2022_06_07","fuego","mean_HRR","cistus_ladanifer",68.7050926187856,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"358","2022","2022_06_07","fuego","AEHC","cistus_ladanifer",4.21297090654918,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"control",NA,"358","2022","2022_06_07","fuego","THR","cistus_ladanifer",3.03561012587771,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"control",NA,"358","2022","2022_06_07","fuego","mean_MLR","cistus_ladanifer",0.163244748323398,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"control",NA,"270(362)","2022","2022_06_07","fuego","FMC","cistus_ladanifer",107.2,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"control",NA,"270(362)","2022","2022_06_07","fuego","PHRR","cistus_ladanifer",102.875408106848,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"270(362)","2022","2022_06_07","fuego","TTI","cistus_ladanifer",102,"Time to Ignition (s)",NA,NA
+"toledo",NA,"control",NA,"270(362)","2022","2022_06_07","fuego","mean_HRR","cistus_ladanifer",81.3402812280166,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"270(362)","2022","2022_06_07","fuego","AEHC","cistus_ladanifer",7.48969640127729,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"control",NA,"270(362)","2022","2022_06_07","fuego","THR","cistus_ladanifer",5.225800807967,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"control",NA,"270(362)","2022","2022_06_07","fuego","mean_MLR","cistus_ladanifer",0.110214955579502,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"control",NA,"432","2022","2022_06_07","fuego","FMC","cistus_ladanifer",116.5,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"control",NA,"432","2022","2022_06_07","fuego","PHRR","cistus_ladanifer",33.4097730762867,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"432","2022","2022_06_07","fuego","TTI","cistus_ladanifer",32,"Time to Ignition (s)",NA,NA
+"toledo",NA,"control",NA,"432","2022","2022_06_07","fuego","mean_HRR","cistus_ladanifer",23.0118355428112,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"432","2022","2022_06_07","fuego","AEHC","cistus_ladanifer",4.31279863565101,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"control",NA,"432","2022","2022_06_07","fuego","THR","cistus_ladanifer",0.62108045628177,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"control",NA,"432","2022","2022_06_07","fuego","mean_MLR","cistus_ladanifer",0.0817706210937501,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"control",NA,"419","2022","2022_06_07","fuego","FMC","quercus_ilex",115.5,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"control",NA,"419","2022","2022_06_07","fuego","PHRR","quercus_ilex",139.810121541214,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"419","2022","2022_06_07","fuego","TTI","quercus_ilex",74,"Time to Ignition (s)",NA,NA
+"toledo",NA,"control",NA,"419","2022","2022_06_07","fuego","mean_HRR","quercus_ilex",95.4048491533572,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"419","2022","2022_06_07","fuego","AEHC","quercus_ilex",7.73361521114258,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"control",NA,"419","2022","2022_06_07","fuego","THR","quercus_ilex",7.74707146504096,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"control",NA,"419","2022","2022_06_07","fuego","mean_MLR","quercus_ilex",0.124403323657709,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"control",NA,"430","2022","2022_06_07","fuego","FMC","quercus_ilex",88.6,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"control",NA,"430","2022","2022_06_07","fuego","PHRR","quercus_ilex",97.8513941354506,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"430","2022","2022_06_07","fuego","TTI","quercus_ilex",14,"Time to Ignition (s)",NA,NA
+"toledo",NA,"control",NA,"430","2022","2022_06_07","fuego","mean_HRR","quercus_ilex",74.1478607683325,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"430","2022","2022_06_07","fuego","AEHC","quercus_ilex",4.36299004499824,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"control",NA,"430","2022","2022_06_07","fuego","THR","quercus_ilex",2.03933167810119,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"control",NA,"430","2022","2022_06_07","fuego","mean_MLR","quercus_ilex",0.172984924107143,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"control",NA,"417","2022","2022_06_07","fuego","FMC","quercus_ilex",76.45,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"control",NA,"417","2022","2022_06_07","fuego","PHRR","quercus_ilex",139.81374980458,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"417","2022","2022_06_07","fuego","TTI","quercus_ilex",60,"Time to Ignition (s)",NA,NA
+"toledo",NA,"control",NA,"417","2022","2022_06_07","fuego","mean_HRR","quercus_ilex",116.237601832738,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"417","2022","2022_06_07","fuego","AEHC","quercus_ilex",6.19424241705158,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"control",NA,"417","2022","2022_06_07","fuego","THR","quercus_ilex",6.97425610996425,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"control",NA,"417","2022","2022_06_07","fuego","mean_MLR","quercus_ilex",0.189258954861111,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"control",NA,"269","2022","2022_06_07","fuego","FMC","cistus_ladanifer",108.1,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"control",NA,"269","2022","2022_06_07","fuego","PHRR","cistus_ladanifer",109.161071675408,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"269","2022","2022_06_07","fuego","TTI","cistus_ladanifer",64,"Time to Ignition (s)",NA,NA
+"toledo",NA,"control",NA,"269","2022","2022_06_07","fuego","mean_HRR","cistus_ladanifer",75.6325338434163,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"269","2022","2022_06_07","fuego","AEHC","cistus_ladanifer",9.82590928437656,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"control",NA,"269","2022","2022_06_07","fuego","THR","cistus_ladanifer",6.47629354897702,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"control",NA,"269","2022","2022_06_07","fuego","mean_MLR","cistus_ladanifer",0.0779602485688813,"Mass Lost Rate (g/s)",NA,NA
+"toledo",NA,"control",NA,"429","2022","2022_06_07","fuego","FMC","quercus_ilex",90.94,"Fuel Moisture Content (%)",NA,NA
+"toledo",NA,"control",NA,"429","2022","2022_06_07","fuego","PHRR","quercus_ilex",141.783033230955,"Peak of Heat Release Rate (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"429","2022","2022_06_07","fuego","TTI","quercus_ilex",55,"Time to Ignition (s)",NA,NA
+"toledo",NA,"control",NA,"429","2022","2022_06_07","fuego","mean_HRR","quercus_ilex",115.917630099501,"Heat Release Ratio (KW/m²)",NA,NA
+"toledo",NA,"control",NA,"429","2022","2022_06_07","fuego","AEHC","quercus_ilex",6.23947407845845,"Average Effective Heat of Combustion (MJ/kg)",NA,NA
+"toledo",NA,"control",NA,"429","2022","2022_06_07","fuego","THR","quercus_ilex",6.37546965547253,"Total Heat Release (MJ/m²)",NA,NA
+"toledo",NA,"control",NA,"429","2022","2022_06_07","fuego","mean_MLR","quercus_ilex",0.186282518939394,"Mass Lost Rate (g/s)",NA,NA

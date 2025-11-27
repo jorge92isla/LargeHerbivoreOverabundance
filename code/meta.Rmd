@@ -1,0 +1,684 @@
+---
+title: "metaanalysis"
+author: "Jorge"
+date: "2025-10-28"
+output: html_document
+---
+
+```{r message=FALSE, warning=FALSE}
+library(orchaRd)
+library(here)
+library(knitr)
+library(revtools)
+library(synthesisr)
+library(tidyverse) 
+library(metafor) 
+#library(ggstatsplot)
+library(gridExtra)
+library(metaDigitise)
+library(ape)
+library(rotl)
+library(ggpubr)
+library(cowplot)
+library(lme4)
+library(lmerTest)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(gt)
+library(ggplot2)
+library(tidyverse)
+library(ggthemes)
+library(readxl)
+```
+
+```{r}
+#meta_data <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/toy_example_curse.csv")
+my_data   <-read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/results/datos_combinados.csv")
+# Reemplazar NAs en columnas específicas
+my_data <- my_data %>%
+  mutate(
+    variable = case_when(
+      is.na(variable) & grupo == "raton" ~ "abundance",
+      is.na(variable) & grupo == "suelo" ~ "density",
+      TRUE ~ variable
+    ),
+    type = if_else(is.na(type), "funcionalidad", type)
+  )
+```
+
+```{r message=FALSE}
+## transform characters to factors
+#cols.factors <- colnames(meta_data)[as.vector(sapply(meta_data, class)=="character")]
+
+#meta_data[cols.factors] <- lapply(meta_data[cols.factors], factor)
+
+#sapply(meta_data, class)
+```
+
+Aquí hay un tema delicado, quiero que en mi meta-análisis, resultados positivos supongan una "mejora" para el ecosistema en términos de diversidad y funcionalidad, mientras que resultados negativos al tratamiento, una erosion.
+
+Por eso creo una columna donde pondero, y le cambio (o no) el signo al logRR.
+
+```{r}
+# Crear la columna sign_factor basada en nuestras decisiones
+my_data$sign_factor <- case_when(
+  my_data$variable2 == "ants_Richness" ~ 1,
+  my_data$variable2 == "ants_Diversity" ~ 1,
+  my_data$variable2 == "ants_Abundance" ~ 1,
+  my_data$variable2 == "aves_Richness" ~ 1,
+  my_data$variable2 == "aves_Diversity" ~ 1,
+  my_data$variable2 == "aves_Abundance" ~ 1,
+  my_data$variable2 == "browsing_Browsing CWMb" ~ -1,
+  my_data$variable2 == "ecofisiologica_Anthocyanin" ~ -1,
+  my_data$variable2 == "ecofisiologica_Chlorophyll" ~ 1,
+  my_data$variable2 == "fruitset_C.ladanifer (low palatability)" ~ 1,
+  my_data$variable2 == "fruitset_Fruit Set C.populifolius (high palatability)" ~ 1,
+  my_data$variable2 == "garrapatas_Ticks Abundance" ~ -1,
+  my_data$variable2 == "habitatcomposition_Bare ground" ~ -1,
+  my_data$variable2 == "habitatcomposition_Vegetation Height" ~ -1,
+  my_data$variable2 == "herbáceas_Richness" ~ 1,
+  my_data$variable2 == "herbáceas_Diversity" ~ 1,
+  my_data$variable2 == "herbáceas_Abundance" ~ 1,
+  my_data$variable2 == "invertebrates_Richness" ~ 1,
+  my_data$variable2 == "invertebrates_Diversity" ~ 1,
+  my_data$variable2 == "invertebrates_Abundance" ~ 1,
+  my_data$variable2 == "leñosas_Richness" ~ 1,
+  my_data$variable2 == "leñosas_Diversity" ~ 1,
+  my_data$variable2 == "leñosas_Abundance" ~ 1,
+  my_data$variable2 == "networks_Weighted Connectance" ~ 1,
+  my_data$variable2 == "networks_Interaction Evenness" ~ 1,
+  my_data$variable2 == "networks_Modularity" ~ 1,
+  my_data$variable2 == "networks_Interaction Richness" ~ 1,
+  my_data$variable2 == "networks_Pollinator Richness" ~ 1,
+  my_data$variable2 == "networks_Flowering Species Richnes" ~ 1,
+  my_data$variable2 == "raton_NA" ~ 1,
+  my_data$variable2 == "regeneracion_Abundance" ~ 1,
+  my_data$variable2 == "regeneracion_Richness" ~ 1,
+  my_data$variable2 == "regeneracion_Diversity" ~ 1,
+  my_data$variable2 == "sizespectrum_Invertebrate Biomass" ~ 1,
+  my_data$variable2 == "sizespectrum_Trophic efficiency" ~ 1,
+  my_data$variable2 == "suelo_NA" ~ -1,
+  my_data$variable2 == "teabags_Organic material stabilization (S)" ~ 1,
+  my_data$variable2 == "teabags_Organic material decomposition (K)" ~ 1,
+  TRUE ~ 1  # Por defecto 1 por si falta alguna
+)
+
+#Quito invertebrados de aquí, pues son ordenes
+my_data <- my_data %>%
+  filter(variable2 != "invertebrates_Diversity")
+my_data <- my_data %>%
+  filter(variable2 != "invertebrates_Richness")
+
+```
+
+Me he dado cuenta de que los modelos salen mejor, con estimas mas fiables, cuando quitamos garrapatas y fruitset. 
+Debido a las caracteristicas
+```{r}
+p.effectsizes.before <- ggplot(my_data, aes(x = delta_lnrr)) +
+  geom_histogram(
+    bins = 50,
+    aes(fill = ifelse(delta_lnrr < -4 | delta_lnrr > 2, "red", "black")),
+    color = "white"
+  ) +
+  scale_fill_identity() +
+  labs(
+    x = expression(italic(Delta * " lnRR")),
+    y = "Frequency",
+  ) + theme_base()
+p.effectsizes.before
+
+ggsave(
+  filename = "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/Hist_EffectSizes_Before.pdf",
+  plot = p.effectsizes.before,
+  width = 7,
+  height = 5
+)
+```
+Realizo imputaciones sobre los Outliers.
+```{r}
+## Imputar valores para grupo = "garrapatas"
+#my_data$delta_lnrr[my_data$grupo == "garrapatas"] <- 0.783656317
+#my_data$delta_var[my_data$grupo == "garrapatas"]  <- 0.046889691
+#
+## Imputar valores para variable = "Fruit Set C.populifolius (high palatability)"
+#my_data$delta_lnrr[my_data$variable == "Fruit Set C.populifolius (high palatability)"] <- -1.906169820
+#my_data$delta_var[my_data$variable == "Fruit Set C.populifolius (high palatability)"]  <- 0.332451826
+
+```
+
+Comprobamos que ha funcionado
+```{r}
+p.effectsizes.after <- ggplot(my_data, aes(x = delta_lnrr)) +
+  geom_histogram(
+    bins = 50,
+    aes(fill = ifelse(delta_lnrr < -4 | delta_lnrr > 2, "red", "black")),
+    color = "white"
+  ) +
+  scale_fill_identity() +
+  labs(
+    x = expression(italic(Delta * " lnRR")),
+    y = "Frequency",
+    title = "Effect Sizes After Correction"
+  ) + theme_base()
+p.effectsizes.after
+
+ggsave(
+  filename = "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/Hist_EffectSizes_After.pdf",
+  plot = p.effectsizes.after,
+  width = 7,
+  height = 5
+)
+```
+
+
+
+Crear la variable invertida
+```{r}
+my_data$delta_lnrr_inverted <- my_data$delta_lnrr * my_data$sign_factor
+```
+
+#Para probar la robustez eliminando esas variables
+```{r}
+my_data <- my_data %>%
+  filter(grupo != "garrapatas")
+
+my_data <- my_data %>%
+  filter(variable2 != "fruitset_Fruit Set C.populifolius (high palatability)")
+```
+
+
+```{r}
+# transform characters to factors
+cols.factors <- colnames(my_data)[as.vector(sapply(my_data, class)=="character")]
+
+my_data[cols.factors] <- lapply(my_data[cols.factors], factor)
+
+sapply(my_data, class)
+```
+
+To model within-study variation, we simply create a unique identifier for each row. We often call this new random-effect EffectID or ObservationID, but feel free to call it as you please long as you do not forget.
+
+```{r}
+#meta_data$EffectID <- 1:nrow(meta_data)
+my_data$EffectID   <- 1:nrow(my_data)
+```
+
+Let’s have a look at the forest plot
+
+```{r}
+#forest(meta_data$Zr, meta_data$VZr)
+forest(my_data$delta_lnrr, my_data$delta_var)
+forest(my_data$delta_lnrr_inverted, my_data$delta_var)
+```
+# Intercept-only model
+```{r}
+intercept_only_model<- rma.mv(yi = delta_lnrr_inverted, 
+                  V = delta_var,
+                  mods = ~  1,  # Sin moderadores
+                  random = list(~ 1 | grupo,
+                                ~ 1 | site,
+                                ~ 1 | EffectID),
+                  method = "REML",
+                  test = "t",
+                  data = my_data,
+                  slab = grupo)
+
+## Printing the summary results of the model
+print(intercept_only_model, digits = 3)
+```
+- Puedo ver un efecto general negativo, se aprecia en el estimate del intercept
+- También vemos una Hetergeneidad muy grande.
+- Y un efecto de los factores random muy grande también!
+
+```{r}
+forest(intercept_only_model, 
+       addpred=TRUE, 
+       xlim=c(-5,5), 
+       at=seq(-4.5,4.5,by=0.5), 
+       shade="zebra",
+       cex=0.6, 
+       header="Group of variables")
+```
+A much more convenient way of looking at the results in this case is to use caterpillar plots
+```{r}
+results_intercept_only_model_vector <- mod_results(intercept_only_model, 
+                                         mod = "1", 
+                                         at = NULL, group = "grupo")
+
+orchaRd::caterpillars(results_intercept_only_model_vector, 
+                      mod = "1", 
+                      xlab = "grupo")
+intercept_only_model
+```
+Let’s also look at the funnel plot and think about what we see. We might be tempted to try to interpret anything about the symmetry of the funnel plot, but remember, whenever there is heterogeneity, visual inspection of the funnel plot will be a potentially misleading tool.
+```{r}
+# Model funnel plots
+intercept.model.funel<-funnel(intercept_only_model)
+
+# Opción con ggsave (puede ser más fiable)
+ggsave("~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/intercept.model.funel.pdf",
+       plot = intercept.model.funel,
+       width = 9, 
+       height = 8,
+       device = cairo_pdf)  # Usar cairo_pdf
+```
+The next and very important step is to explore heterogeneity. We can start by simply calculating the typical sampling variance (AKA sampling error), which captures the statistical noise of the data (and, for whatever reason, is rarely reported in the meta-analytic literature). We can use the following function.
+
+```{r}
+sigma2_v <- function(mod){
+  sigma2_v <- sum(1 / mod$vi) * (mod$k - 1) /
+    (sum(1 / mod$vi)^2 - sum((1 / mod$vi)^2))
+  return(sigma2_v)
+}
+sigma2_v(intercept_only_model)
+```
+let’s calculate our four heterogeneity metrics of interest
+```{r}
+# # Total unstandardized raw variance (i.e. total heterogeneity)
+sigma2_intercept_only_model <- sum(intercept_only_model$sigma2)
+I2_intercept_only_model <- orchaRd::i2_ml(intercept_only_model)
+CV_intercept_only_model <- orchaRd::cvh2_ml(intercept_only_model)
+M_intercept_only_model <- orchaRd::m2_ml(intercept_only_model)
+sigma2_intercept_only_model
+I2_intercept_only_model
+CV_intercept_only_model
+M_intercept_only_model
+```
+Casi TODA la variabilidad (98.63%) es heterogeneidad real entre efectos
+
+I²_grupo = 64.21% → Las diferencias entre grupos (hormigas, aves, redes, etc.) explican el 64% de la variabilidad
+
+I²_EffectID = 34.42% → Las diferencias dentro de cada grupo explican el 34% de la variabilidad
+
+Los diferentes tipos de métricas (grupos) responden de manera MUY diferente al impacto de los ciervos
+
+Dentro de cada grupo también hay variabilidad sustancial (34%) → incluso métricas del mismo grupo responden diferente
+
+"La respuesta ecológica al impacto de ciervos es altamente variable, siendo las diferencias entre tipos de métricas (grupos) el principal driver de esta variabilidad (64%), seguido por diferencias específicas entre métricas individuales dentro de cada grupo (34%)."
+
+Sin embargo, esto lo volveré hacer con mi modelo cargado de moderadores.
+
+
+# First Metagregression
+
+## Small study effects
+
+Antes de nada, voy a ver si hay un "small study effect"
+
+```{r}
+my_data$sei <- sqrt(my_data$delta_var) # SE = sqrt(SV)
+
+my_sei_model_vector <- rma.mv(yi = delta_lnrr_inverted, 
+                  V = delta_var,
+                  mods = ~ 1 + sei,  # Incluyendo el standard error como moderador
+                  random = list(~ 1 | grupo,
+                                ~ 1 | site,
+                                ~ 1 | EffectID),
+                  method = "REML",
+                  test = "t",
+                  data = my_data)
+
+# Printing the summary results of the model
+print(my_sei_model_vector, digits = 3)
+```
+
+Pues parece que si, tenemos un efecto significativo y es que, cuanto mayor es la precisión, mayor es el efecto, en este caso, el efecto negativo ( esto puede verse con el simbolo negativo del estimate y su significancia).
+
+```{r}
+figure_small_study_effects <- orchaRd::bubble_plot(my_sei_model_vector, 
+                                                   mod = "sei", 
+                                                   group = "grupo",
+                                                   xlab = "sei",
+                                                   legend.pos = "bottom.right")
+figure_small_study_effects
+```
+
+How much heterogeneity does this small-study effects test explains?
+
+```{r}
+round(r2_ml(my_sei_model_vector)*100, 2)[1]
+```
+
+# Second metaregression
+
+## Treatment
+```{r}
+my_treatment_model_vector <- rma.mv(yi = delta_lnrr_inverted, 
+                  V = delta_var,
+                  mods = ~ 1 + tratamiento, # Incluyendo tratamiento como
+                  random = list(~ 1 | grupo,
+                                ~ 1 | site,
+                                ~ 1 | EffectID),
+                  method = "REML",
+                  test = "t",
+                  data = my_data,
+                  slab = variable2)
+print(my_treatment_model_vector)
+```
+
+No parece haber un efecto del tratamiento
+```{r}
+fig_tratamiento <- orchaRd::orchard_plot(my_treatment_model_vector, 
+                                          mod = "tratamiento", 
+                                          group = "grupo", 
+                                          xlab = "Effect size",
+                                          transfm = "tanh",
+                                          trunk.size = 1.5,
+                                          branch.size = 3,
+                                          twig.size = 1)
+
+
+fig_tratamiento <- fig_tratamiento +
+  ggplot2::scale_fill_manual(values = c("High" = "#E3626F", "Hyper" = "#424242")) +
+  ggplot2::scale_colour_manual(values = c("High" = "white", "Hyper" = "white")) +
+  ggplot2::scale_x_discrete(labels = c("High" = "High", "Hyper" = "Hyper")) +
+  ggplot2::labs(
+    title = "Large Herbivore Overabundance Density Treatment Effects",
+    caption = "Note: Effect sizes displayed with hyperbolic tangent transformation for improved visualization"
+  ) +
+  ggplot2::theme(
+    plot.caption = element_text(size = 9, color = "gray40", hjust = 0)
+  )
+
+fig_tratamiento
+```
+# Third metaregression (Ahora mismo no tiene sentido porque site es un non-independence)
+## Site 
+```{r}
+my_site_model_vector <- rma.mv(yi = delta_lnrr_inverted, 
+                  V = delta_var,
+                  mods = ~ 1 + site, # Incluyendo site como
+                  random = list(~ 1 | grupo,
+                                ~ 1 | EffectID),
+                  method = "REML",
+                  test = "t",
+                  data = my_data,
+                  slab = variable2)
+print(my_site_model_vector)
+```
+
+No parece haber un efecto del sitio
+```{r}
+fig_sitio <- orchaRd::orchard_plot(my_site_model_vector, 
+                                          mod = "site", 
+                                          group = "grupo", 
+                                          xlab = "Effect size",
+                                          transfm = "tanh",
+                                          trunk.size = 1.5,
+                                          branch.size = 3,
+                                          twig.size = 1)
+
+
+fig_sitio <- fig_sitio +
+  ggplot2::scale_x_discrete(labels = c("Valencia" = "Muela de Cortes", "Toledo" = "Quntos de Mora")) +
+  ggplot2::labs(
+    title = "Large Herbivore Overabundance Site Effects",
+    caption = "Note: Effect sizes displayed with hyperbolic tangent transformation for improved visualization") +
+  ggplot2::theme(plot.caption = element_text(size = 9, color = "gray40", hjust = 0))
+
+fig_sitio
+```
+
+# Forth metaregression (En este modelo cambia la estructura de los non-independence factors ya que elimino grupo)
+## Group 
+```{r}
+my_group_model_vector <- rma.mv(yi = delta_lnrr_inverted, 
+                  V = delta_var,
+                  mods = ~ 1 + grupo,
+                  random = list(~ 1 | site,
+                                ~ 1 | EffectID),
+                  method = "REML",
+                  test = "t",
+                  data = my_data,
+                  slab = variable2)
+print(my_group_model_vector)
+```
+
+Claro que hay efectos, sobretodo tienen un efecto claro la abundancia de garrapatas y las cuestiones de éxito reproductivo
+```{r}
+fig_grupo <- orchaRd::orchard_plot(my_group_model_vector, 
+                                          mod = "grupo", 
+                                          group = "grupo", 
+                                          xlab = "Effect size",
+                                          transfm = "tanh",
+                                          trunk.size = 1,
+                                          branch.size = 1,
+                                          twig.size = 0.5)
+
+
+fig_grupo <- fig_grupo +
+  ggplot2::labs(
+    title = "Large Herbivore Overabundance Group Effects"
+  ) +
+  theme(
+    axis.text.y = element_text(angle = 0, hjust = 1, vjust = 1)
+  )
+
+
+fig_grupo
+```
+
+# Fivth metaregression
+## TYPE 
+```{r}
+my_type_model_vector <- rma.mv(yi = delta_lnrr_inverted, 
+                  V = delta_var,
+                  mods = ~ 1 + type, 
+                  random = list(~ 1 | site,
+                                ~ 1 | grupo,
+                                ~ 1 | EffectID),
+                  method = "REML",
+                  test = "t",
+                  data = my_data,
+                  slab = variable2)
+print(my_type_model_vector)
+```
+
+Claro que hay efectos, sobretodo tienen un efecto claro la abundancia de garrapatas y las cuestiones de éxito reproductivo
+```{r}
+fig_type <- orchaRd::orchard_plot(my_type_model_vector, 
+                                          mod = "type", 
+                                          group = "grupo", 
+                                          xlab = "Effect size",
+                                          transfm = "tanh",
+                                          trunk.size = 1.5,
+                                          branch.size = 3,
+                                          twig.size = 1)
+
+
+fig_type <- fig_type +
+  ggplot2::scale_x_discrete(labels = c("Funcionalidad" = "Ecosystem functioning", "Diversidad" = "Species Diversity")) +
+  ggplot2::scale_fill_manual(values = c("Funcionalidad" = "#D85F02", "Diversidad" = "#45B599")) +
+  ggplot2::scale_colour_manual(values = c("High" = "white", "Hyper" = "white")) +
+  ggplot2::labs(
+    title = "Large Herbivore Overabundance Group Effects",
+    caption = "Note: Effect sizes displayed with hyperbolic tangent transformation for improved visualization") +
+  ggplot2::theme(plot.caption = element_text(size = 9, color = "gray40", hjust = 0))
+
+fig_type
+```
+
+
+```{r}
+my_main_model_vector <- rma.mv(yi = delta_lnrr_inverted, 
+                  V = delta_var,
+                  mods = ~ type + tratamiento + sei ,  # Efectos fijos principales
+                  random = list(~ 1 | grupo,
+                                ~ 1 | site,
+                                ~ 1 | EffectID),
+                  method = "REML",
+                  test = "t",
+                  data = my_data,
+                  slab = grupo)
+print(my_main_model_vector)
+```
+```{r}
+sigma2_main_model_vector <- sum(my_main_model_vector$sigma2)
+I2_main_model_vector <- orchaRd::i2_ml(my_main_model_vector)
+CV_main_model_vector <- orchaRd::cvh2_ml(my_main_model_vector)
+M_main_model_vector <- orchaRd::m2_ml(my_main_model_vector)
+```
+
+
+
+```{r}
+results_intercept_model_vector <- mod_results(intercept_only_model, 
+                                         mod = "1", 
+                                         at = NULL, group = "variable2")
+
+results_main_model_vector.type <- mod_results(my_type_model_vector, 
+                                         mod = "type", 
+                                         at = NULL, group = "variable2")
+results_main_model_vector.site <- mod_results(my_site_model_vector, 
+                                         mod = "site", 
+                                         at = NULL, group = "variable2")
+results_main_model_vector.tratamiento <- mod_results(my_treatment_model_vector, 
+                                         mod = "tratamiento", 
+                                         at = NULL, group = "variable2")
+
+#results_main_model_vector.4 <- mod_results(my_main_model_vector, 
+#                                         mod = "grupo", 
+#                                         at = NULL, group = "variable2")
+```
+
+
+
+```{r}
+figure_intercept_model_vector <- orchaRd::orchard_plot(results_intercept_model_vector, 
+                                                    mod = "1", 
+                                                    group = "variable2", 
+                                                    xlab = "Effect size",
+                                                    transfm = "tanh", # to plot r rather than Zr
+                                                    trunk.size = 1.5,
+                                                    branch.size = 3,
+                                                    twig.size = 1)
+
+
+figure_main_model_vector.type <- orchaRd::orchard_plot(results_main_model_vector.type, 
+                                                    mod = "1", 
+                                                    group = "grupo", 
+                                                    xlab = "Effect size",
+                                                    transfm = "tanh", # to plot r rather than Zr
+                                                    trunk.size = 1.5,
+                                                    branch.size = 3,
+                                                    twig.size = 1)
+
+figure_main_model_vector.site <- orchaRd::orchard_plot(results_main_model_vector.site, 
+                                                    mod = "1", 
+                                                    group = "site", 
+                                                    xlab = "Effect size",
+                                                    transfm = "tanh", # to plot r rather than Zr
+                                                    trunk.size = 1.5,
+                                                    branch.size = 3,
+                                                    twig.size = 1)
+
+figure_main_model_vector.tratamiento <- orchaRd::orchard_plot(results_main_model_vector.tratamiento, 
+                                                    mod = "1", 
+                                                    group = "tratamiento", 
+                                                    xlab = "Effect size",
+                                                    transfm = "tanh", # to plot r rather than Zr
+                                                    trunk.size = 1.5,
+                                                    branch.size = 3,
+                                                    twig.size = 1)
+
+figure_small_study_effects <- orchaRd::bubble_plot(my_sei_model_vector, 
+                                                   mod = "sei", 
+                                                   group = "grupo",
+                                                   xlab = "sei",
+                                                   legend.pos = "bottom.right")
+
+
+# Transformaciones con ggplot
+figure_main_model_vector.type<- figure_main_model_vector.type +
+  ggplot2::scale_x_discrete(labels = c("Funcionalidad" = "Ecosystem functioning", "Diversidad" = "Species Diversity")) +
+  ggplot2::scale_fill_manual(values = c("Funcionalidad" = "#D85F02", "Diversidad" = "#45B599")) +
+  ggplot2::scale_colour_manual(values = c("High" = "white", "Hyper" = "white")) +
+  ggplot2::theme(plot.caption = element_text(size = 9, color = "gray40", hjust = 0))
+
+figure_main_model_vector.site<-figure_main_model_vector.site  +
+  ggplot2::scale_x_discrete(labels = c("Valencia" = "Muela de Cortes", "Toledo" = "Quntos de Mora")) +
+    ggplot2::scale_fill_manual(values = c("Valencia" = "gray40", "Toledo" = "gray40")) +
+   ggplot2::scale_colour_manual(values = c("Valencia" = "black", "Toledo" = "black")) +
+  ggplot2::theme(plot.caption = element_text(size = 9, color = "gray40", hjust = 0))
+
+figure_main_model_vector.site
+
+figure_main_model_vector.tratamiento<- figure_main_model_vector.tratamiento +
+  ggplot2::scale_fill_manual(values = c("High" = "#E3626F", "Hyper" = "#424242")) +
+  ggplot2::scale_colour_manual(values = c("High" = "white", "Hyper" = "white")) +
+  ggplot2::scale_x_discrete(labels = c("High" = "High", "Hyper" = "Hyper")) +
+  ggplot2::theme(
+    plot.caption = element_text(size = 9, color = "gray40", hjust = 0)
+  )
+
+figure_small_study_effects<-figure_small_study_effects +
+  ggplot2::labs(x = "Standard Error of lnRR")
+
+figure_intercept_model_vector <- figure_intercept_model_vector +
+   ggplot2::scale_fill_manual(values ="gray40") +
+   ggplot2::scale_colour_manual(values ="gray40") 
+
+ # Modificaciones incrustando estadísticos
+figure_intercept_model_vector<-figure_intercept_model_vector + annotate(geom = "text", x = 1.5, y = -0.8, label = paste0("italic(sigma) == ",round(sigma2_intercept_only_model,3)), color = "black", parse = TRUE, size = 4) + annotate(geom = "text", x = 1.4, y = -0.8, label = paste0("italic(I)^{2} == ",round(I2_intercept_only_model[[1]],1), " *\"%\""), color = "black", parse = TRUE, size = 4) + annotate(geom = "text", x = 1.3, y = -0.8, label = paste0("italic(CV) == ",round(CV_intercept_only_model[[1]],2)), color = "black", parse = TRUE, size = 4) + annotate(geom = "text", x = 1.2, y = -0.8, label = paste0("italic(M) == ",round(M_intercept_only_model[[1]],2)), color = "black", parse = TRUE, size = 4)
+
+figure_main_model_vector.type<-figure_main_model_vector.type + annotate(geom = "text", x = 2.3, y = -.8, label = paste0("italic(R)^{2} == ",round(r2_ml(my_type_model_vector)*100, 1)[1], " *\"%\""), color = "black", parse = TRUE, size = 5)
+
+figure_main_model_vector.tratamiento<-figure_main_model_vector.tratamiento  + annotate(geom = "text", x = 2.3, y = -.7, label = paste0("italic(R)^{2} == ",round(r2_ml(my_treatment_model_vector)*100, 1)[1], " *\"%\""), color = "black", parse = TRUE, size = 5)
+
+figure_main_model_vector.site<-figure_main_model_vector.site + annotate(geom = "text", x = 2.3, y = -.8, label = paste0("italic(R)^{2} == ",round(r2_ml(my_site_model_vector)*100, 1)[1], " *\"%\""), color = "black", parse = TRUE, size = 5)
+
+figure_small_study_effects<-figure_small_study_effects + annotate(geom = "text", x = 0.5, y = -1, label = paste0("italic(R)^{2} == ",round(r2_ml(my_sei_model_vector)*100, 1)[1], " *\"%\""), color = "black", parse = TRUE, size = 5)
+
+fig_grupo<-fig_grupo + annotate(geom = "text", x = 5, y = 0.9, label = paste0("italic(R)^{2} == ",round(r2_ml(my_group_model_vector)*100, 1)[1], " *\"%\""), color = "black", parse = TRUE, size = 4)
+
+#grid.arrange(figure_main_model_vector, #figure_main_model_vector.type,figure_main_model_vector.tratamiento,figure_main_model_vector.site,figure_small_study_effects)
+```
+fUSIONANDO GRÁFICOS
+```{r}
+# Crear los plots con letras identificadoras
+p1 <- figure_intercept_model_vector + 
+  ggplot2::labs(title = "A) Overall Effect-Intercept-only Model") +
+  ggplot2::theme(plot.title = element_text(face = "bold", size = 11),
+    legend.position = "none") 
+p2 <- figure_main_model_vector.type + 
+  ggplot2::labs(title = "B) Metric Type Moderator") +
+  ggplot2::theme(plot.title = element_text(face = "bold", size = 11),
+    legend.position = "none")
+p3 <- figure_main_model_vector.tratamiento + 
+  ggplot2::labs(title = "C) Herbivore Density Moderator") +
+  ggplot2::theme(plot.title = element_text(face = "bold", size = 11),
+    legend.position = "none")  
+p4 <- figure_main_model_vector.site + 
+  ggplot2::labs(title = "D) Study Sites") +
+  ggplot2::theme(plot.title = element_text(face = "bold", size = 11),
+    legend.position = "none") 
+p5 <- figure_small_study_effects + 
+  ggplot2::labs(title = "E) Sampling Precision Effects") +
+  ggplot2::theme(plot.title = element_text(face = "bold", size = 11))
+
+# Diseño del grid: primeros 4 en 2x2
+layout_matrix <- rbind(c(1, 2),
+                      c(3, 4))
+
+grid.arrange(p1, p2, p3, p5, 
+             layout_matrix = layout_matrix)
+```
+```{r}
+# Opción con ggsave (puede ser más fiable)
+ggsave("~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Meta_analysis_filtered.pdf",
+       plot = grid.arrange(p1, p2, p3, p5,  
+                          layout_matrix = layout_matrix),
+       width = 9, 
+       height = 8,
+       device = cairo_pdf)  # Usar cairo_pdf
+```
+Guardo la de sitio
+```{r}
+ggsave("~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/meta_site",
+       plot = p4,
+       width = 9, 
+       height = 8,
+       device = cairo_pdf)  # Usar cairo_pdf
+```
+

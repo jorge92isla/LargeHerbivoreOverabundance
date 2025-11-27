@@ -1,0 +1,64 @@
+---
+title: "Code_1.10_data_carpintry_ticks"
+author: "Jorge"
+date: "2025-03-12"
+output: html_document
+---
+🪳
+
+Este es el dataset de carpintería de datos para preparar los datos de **garrapatas en vegetación** que me envía Laura Fuentes Moyayo. Los datos eran imposibles de manipular en R ya que no guardaban estructura de dataset sino de cuaderno de datos. Por lo que lo he manipulado a mano.
+
+
+-   *Dimensión temporal:* Los dos años
+-   *Dimensión espacial:* Toledo, es decir, Quintos de Mora, no tiene datos
+-   *jorge_traductor* Laura fuentes me ha dajado la chuleta en el excel para hacer la interpretación de los datos
+
+
+Cargando paquetes
+```{r cargando paquetes, include=FALSE}
+library(knitr)
+library(readxl)
+library(dplyr)
+library(stringr)
+library(lubridate)
+```
+
+Cargando datos
+```{r}
+ticks_raw_data <- as.data.frame(read_excel(file.path("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_raw/ticks_micromamiferos/ticks_modified.xlsx")))
+```
+
+
+
+## Clean data save ticks 🪳
+
+```{r}
+write.csv(ticks_raw_data, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/ticks_clean_data.csv", row.names = FALSE)
+```
+
+```{r}
+# Agrupar por tratamiento y año, contar los sampling_unit distintos
+ticks_raw_data %>%
+  group_by(treatment, year) %>%
+  summarise(
+    num_sampling_units = n_distinct(sampling_unit),  # Contar trampas únicas
+    .groups = "drop"
+  ) %>%
+  # Crear una tabla bonita con knitr::kable
+  kable(
+    caption = "Número de sampling units por tratamiento y año",
+    col.names = c("Tratamiento", "Año", "Número de sampling units")
+  )
+```
+
+Limpio el espacio
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```

@@ -1,0 +1,89 @@
+---
+title: "Code_1.4_woodyvegetation"
+author: "Jorge Isla"
+date: "2025-03-11"
+output: html_document
+---
+
+🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳
+This code clean the woody vegetation cover dataset and calculates ant richness, diversity, and abundance for each sampling unit (linear transect).
+
+```{r}
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(ggforce)
+```
+
+## Data loading
+```{r message=FALSE, warning=FALSE}
+woody_data <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/woody_cover_clean_data.csv")
+# Data structure check
+head(woody_data)
+```
+
+Outputs for results section summary
+```{r}
+sort(unique(woody_data$level))
+n_distinct(woody_data$level) # Overall species richness
+length(woody_data$level) # Overall number of records
+```
+
+Data carpintry
+```{r}
+# New sampling unit to agregate
+woody_data <- woody_data %>%
+  mutate(sampling_unit_new = paste(site, habitat, treatment, sampling_unit, sep = "_"))
+
+n_distinct(woody_data$sampling_unit_new) # Overall number of transects (for Table 1)
+
+# Group by 'sampling_unit_new', 'year' y 'level' (species), and sum observations
+abundance_matrix <- woody_data %>%
+  group_by(sampling_unit_new, year, level) %>%
+  summarise(total_abundance = sum(observation, na.rm = TRUE)) %>%
+  ungroup()  
+
+# Convert dataset to a matrix 
+abundance_matrix_wide <- abundance_matrix %>%
+  pivot_wider(names_from = level, values_from = total_abundance, values_fill = list(total_abundance = 0))
+
+# Result inspection
+head(abundance_matrix_wide)
+```
+
+Computing diversity, richnes and abundances
+```{r}
+require(vegan)
+# remove categorical variables
+species_matrix <- select(abundance_matrix_wide, -year, -sampling_unit_new)
+
+# Diversity computing
+abundance_matrix_wide <- abundance_matrix_wide %>%
+  mutate(
+    Riqueza = rowSums(species_matrix > 0),  
+    Shannon = exp(vegan::diversity(species_matrix, index = "shannon")),  
+    Simpson = vegan::diversity(species_matrix, index = "invsimpson"),  
+    Abundancia = rowSums(species_matrix)
+  )
+
+# Sorting dataset and includ just necessary columns
+abundance_matrix_wide <- abundance_matrix_wide %>%
+  select(1:2, (ncol(abundance_matrix_wide) - 3):ncol(abundance_matrix_wide))  # Incluir 'Abundancia'
+
+# Check final structure
+head(abundance_matrix_wide)
+#hist(abundance_matrix_wide$Abundancia)
+```
+
+## Save data
+```{r}
+write.csv(abundance_matrix_wide, file = "/Users/jorgeislaescudero/Documents/GitHub/LargeHerbivoreOverabundance/data/data_for_EffectSizes/woody.csv", row.names = FALSE)
+```
+
+## Space cleaning
+```{r}
+rm(list = ls())
+gc()
+cat("\014")
+```

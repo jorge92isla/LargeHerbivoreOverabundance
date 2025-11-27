@@ -1,0 +1,208 @@
+---
+title: "Code_1.13_data_carpintry_fitness"
+author: "Jorge"
+date: "2025-04-25"
+output: html_document
+---
+
+Este es el código de data carpintry para los datos de fitness de la polinizacoón, éxito de polinización.
+
+La explicación está en el primer documento.
+
+Son datos únicamente para toledo
+
+## Cargando paquetes
+
+```{r cargando paquetes, include=FALSE}
+#library()
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(stringr)
+```
+
+Cargando datos
+```{r Cargando datos}
+FS_data <- as.data.frame(read_excel(file.path("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_raw/fitness/base datos incremento_carlos hc_v4.xlsx"), sheet = "FS"))
+SS_data <- as.data.frame(read_excel(file.path("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_raw/fitness/base datos incremento_carlos hc_v4.xlsx"), sheet = "SS"))
+head(FS_data)
+```
+
+Primero voy a trabajar con el fruit set.
+
+Al final un fruit set es la proporción de flores que se transforman en fruto. Puedo calcular el efecto total, o el efecto de la pura polinización
+```{r}
+library(dplyr)
+
+resultado <- bind_rows(
+  # Análisis con todos los datos
+  FS_data %>%
+    group_by(year, treatment, species) %>%
+    summarise(
+      porcentaje = mean(fruit == 1) * 100,
+      sd = sd(fruit == 1) * 100,
+      muestras = n(),
+      .groups = "drop"
+    ) %>%
+    mutate(analisis = "total"),
+  
+  # Análisis excluyendo herbivory = 1
+  FS_data %>%
+    filter(herbivory != 1) %>%
+    group_by(year, treatment, species) %>%
+    summarise(
+      porcentaje = mean(fruit == 1) * 100,
+      sd = sd(fruit == 1) * 100,
+      muestras = n(),
+      .groups = "drop"
+    ) %>%
+    mutate(analisis = "sin_herbivoria_1")
+) %>%
+  select(analisis, everything())  # Ordenar columnas
+
+print(resultado)
+```
+
+```{r}
+library(dplyr)
+library(stringr)
+library(tidyr)
+
+resultado_transformado <- resultado %>%
+  # Extraer el epíteto específico (ej: "ladanifer" de "Cistus_ladanifer")
+  mutate(
+    especie_abrev = str_extract(species, "(?<=_)[^_]+")
+  ) %>% 
+  # Eliminar columna original de especies
+  select(-species) %>% 
+  # Renombrar métricas para claridad
+  rename(
+    mean_fs = porcentaje,
+    n_fs = muestras
+  ) %>% 
+  # Pivotear para formato ancho con nombres combinados
+  pivot_wider(
+    names_from = c(especie_abrev, analisis),
+    values_from = c(mean_fs, sd, n_fs),
+    names_glue = "{.value}_fs_{especie_abrev}_{analisis}"
+  ) %>% 
+  # Reordenar columnas lógicamente
+  select(
+    year, treatment,
+    order(names(.))
+  )
+
+library(dplyr)
+
+resultado_transformado <- resultado_transformado %>%
+  rename(
+    # Medias (mean)
+    mean_fs_lad_pol = mean_fs_fs_ladanifer_sin_herbivoria_1,
+    mean_fs_lad_total = mean_fs_fs_ladanifer_total,
+    mean_fs_pop_pol = mean_fs_fs_populifolius_sin_herbivoria_1,
+    mean_fs_pop_total = mean_fs_fs_populifolius_total,
+    
+    # Conteos (n)
+    n_fs_lad_pol = n_fs_fs_ladanifer_sin_herbivoria_1,
+    n_fs_lad_total = n_fs_fs_ladanifer_total,
+    n_fs_pop_pol = n_fs_fs_populifolius_sin_herbivoria_1,
+    n_fs_pop_total = n_fs_fs_populifolius_total,
+    
+    # Desviaciones estándar (sd)
+    sd_fs_lad_pol = sd_fs_ladanifer_sin_herbivoria_1,
+    sd_fs_lad_total = sd_fs_ladanifer_total,
+    sd_fs_pop_pol = sd_fs_populifolius_sin_herbivoria_1,
+    sd_fs_pop_total = sd_fs_populifolius_total
+  )
+
+# Verificación
+names(resultado_transformado)
+
+resultado_transformado <- resultado_transformado %>%
+  mutate(
+    treatment = recode(treatment,
+                       "Control" = "control",
+                       "High_density" = "high",
+                       "Hyper_density" = "hyper")
+  )
+
+
+write.csv(resultado_transformado, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/fruitset.csv", row.names = FALSE)
+```
+# Ahora vamos a trabajar con el Seed set, lo que tengo es el número de semillas por fruto
+```{r}
+SS_data_clean <- SS_data %>%
+  mutate(
+    seeds = as.numeric(seeds)  # Convierte "NA" a NA_real_ y números en formato texto a numéricos
+  ) %>%
+  filter(!is.na(seeds)) %>%    # Filtra solo filas con seeds numérico (elimina NA)
+  select(-non_viable, -herbivory, -herbivory_intensity, -day, -fruit, -individual)  # Elimina columnas no deseadas
+
+# Verificar el resultado
+head(SS_data_clean)
+str(SS_data_clean)  # Confirma que 'seeds' ahora es numérico (num)
+
+# A minúsculas
+SS_data_clean <- SS_data_clean %>%
+  mutate(treatment = str_to_lower(treatment))  # Solo minúsculas
+
+#Cambiamos nomrbes a las especies
+
+SS_data_clean <- SS_data_clean %>%
+  mutate(
+    species = case_when(
+      species == "Cistus_ladanifer" ~ "ss_lad",
+      species == "Cistus_populifolius" ~ "ss_pop",  # Ajusta si el nombre original es diferente
+      TRUE ~ species  # Mantiene otros valores sin cambios (por si hay más especies)
+    )
+  )
+
+# Verificar cambios
+ head(SS_data_clean)
+```
+
+```{r}
+# Paso 1: Calcular estadísticos por grupo (year + treatment + species)
+stats_data <- SS_data_clean %>%
+  group_by(year, treatment, species) %>%
+  summarise(
+    mean = mean(seeds),
+    sd = sd(seeds),
+    n = n(),
+    .groups = 'drop'
+  )
+
+# Paso 2: Pivotar para tener métricas por especie en columnas
+final_data <- stats_data %>%
+  pivot_wider(
+    names_from = species,       # Valores únicos de species (ss_lad, ss_pop)
+    values_from = c(mean, sd, n),  # Métricas a expandir
+    names_sep = "_"             # Separador para nombres de columnas
+  )
+
+# Ver el resultado
+head(final_data)
+
+final_data <- final_data %>%
+  mutate(
+    treatment = recode(treatment,
+                       "control" = "control",
+                       "high_density" = "high",
+                       "hyper_density" = "hyper"))
+
+#A guardar
+write.csv(final_data, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/seedset.csv", row.names = FALSE)
+```
+
+Limpio el espacio
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```
+

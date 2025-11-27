@@ -1,0 +1,54 @@
+---
+title: "Code_1.3_soil"
+author: "Jorge"
+date: "2025-03-23"
+output: html_document
+---
+
+🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️🌍️
+
+This code clean and prepare Soil bulk density dataset
+
+## Pacakage loading
+
+```{r}
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(ggforce)
+```
+
+## Data loading
+
+```{r message=FALSE, warning=FALSE}
+suelo_data <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/abioticsoil_clean_data.csv")
+
+# Filter by apparent_density
+suelo_density<- suelo_data %>%
+  filter(variable_name == "apparent_density")
+# Create new column
+suelo_density <- suelo_density %>%
+  mutate(sampling_unit_new = paste(site,habitat, treatment, plot, sampling_unit, sep = "/"))
+
+head(suelo_density)
+```
+
+### Data save
+
+```{r}
+write.csv(suelo_density, file = "/Users/jorgeislaescudero/Documents/GitHub/LargeHerbivoreOverabundance/data/data_for_EffectSizes/suelo.csv", row.names = FALSE)
+```
+
+### Space cleaning
+
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```

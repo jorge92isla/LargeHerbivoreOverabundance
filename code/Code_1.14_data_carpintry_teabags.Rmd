@@ -1,0 +1,102 @@
+---
+title: "Code_1.14_data_carpintry_teabags"
+author: "Jorge"
+date: "2025-05-14"
+output: html_document
+---
+
+🫖
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Este es el dataset de carpintería de datos para preparar los datos tea bags Elena Barraza. Solo contamos con dos componentes, tasa de *estabilización, S* y tasa de *degradación, k*
+
+# Tea Bags
+
+-   *Dimensión temporal y espacial:* toledo y valencia Dimensión espacial: 2021 y 2022
+
+-   *jorge_traductor:* En este caso, discutí las cosas con Elena Barraza. Voy a aplicarw las mismas interpretaciones que para el dataset de densidad aparente.
+
+Cargamos paquetes
+```{r}
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(stringr)
+```
+
+Cargo datos
+```{r}
+getwd()
+teabag <- read_excel("/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_raw/biotic_soil/TeaBagINCREMENTO.xlsx", 
+    sheet = "all")
+head(teabag)
+```
+Empiezo a limpiarlos para sacar los statistics
+```{r}
+teabag<-teabag %>%
+  mutate(
+    site = case_when(
+      site == "MC" ~ "valencia",
+      site == "QM" ~ "toledo",
+      TRUE ~ site
+    ),
+    track = paste0("T", track),
+    treatment = tolower(treatment),
+    habitat = tolower(habitat),
+    treatment = case_when(
+      treatment == "control a" ~ "control_high",
+      treatment == "control b" ~ "control_hyper",
+      TRUE ~ treatment
+    )
+  )
+```
+Se que debería preparar esto para guardarlo en el formato de 14 columnas, pero ya lo haré, de momento voy a sacar los statistics para introducir esto en el baci.
+
+```{r}
+ggplot(
+  teabag %>% pivot_longer(cols = c(s), names_to = "variable", values_to = "value"),
+  aes(x = treatment, y = value, fill = as.factor(year))
+) +
+  geom_boxplot(alpha = 0.7, position = position_dodge(width = 0.8)) +
+  facet_grid(site ~ variable, scales = "free_y") +
+  labs(x = "Tratamiento", y = "Valor", fill = "Año",
+       title = "Distribución de s y k por sitio, tratamiento y año") +
+  theme_minimal()
+```
+
+
+Saco statistics
+```{r}
+teabag_statistics<-teabag %>%
+  group_by(site, treatment, year) %>%
+  summarise(
+    mean_s = mean(s, na.rm = TRUE),
+    sd_s = sd(s, na.rm = TRUE),
+    n_s = sum(!is.na(s)),
+    mean_k = mean(k, na.rm = TRUE),
+    sd_k = sd(k, na.rm = TRUE),
+    n_k = sum(!is.na(k)),
+    .groups = "drop"
+  )
+```
+
+Guardo directamente para los análisis BACI
+```{r}
+#A guardar
+write.csv(teabag_statistics, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/teabags.csv", row.names = FALSE)
+```
+
+Limpio el espacio
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```

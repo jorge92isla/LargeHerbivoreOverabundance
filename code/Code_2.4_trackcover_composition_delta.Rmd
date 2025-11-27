@@ -1,0 +1,344 @@
+---
+title: "Code_2.4_trackcover_composition_delta"
+author: "Jorge"
+date: "2025-03-26"
+output: html_document
+---
+
+🌳🌱🪵🌍🌳🌱🪵🌍🌳🌱🪵🌍🌳🌱🪵🌍🌳🌱🪵🌍🌳🌱🪵🌍🌳🌱🪵🌍🌳🌱🪵🌍🌳🌱🪵🌍🌳🌱🪵🌍
+
+Voy a hacer los cálculos de delta vara la variación de los componentes del paisaje, es decir, la composición general que sale de los transectos (pastos, suelo desnudo y madera muerta)
+
+Aquí de nuevo se va a tratar de un delta para cada métrica, anidado dentro de tratamiento. 
+
+```{r}
+# Cargar las librerías necesarias
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(ggforce)
+library(tidyr)
+```
+
+
+```{r}
+# Cargar el archivo de datos
+trackcover_data <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/track_cover_clean_data.csv")
+# Revisar la estructura de los datos cargados
+head(trackcover_data)
+
+# Filtrar para eliminar las filas donde 'site' sea igual a "valencia". En Valencia solamente se hicieron transectos en 2022, no en 2021. Por lo que no podemos aprovechar ahí la potencia del diseño BACI.
+#trackcover_data <- trackcover_data %>%
+#  filter(site != "valencia")
+
+head(trackcover_data)
+```
+#Preparo y guardo aquí los datos para BACI
+
+```{r}
+#PRIMERO QUIERO METER 0s para que los use en las medias y en el N muestral
+library(dplyr)
+library(tidyr)
+
+# Especificamos los niveles de interés
+levels_of_interest <- c("Bare_ground", "Herbs", "Woody_sp") # De aquí he quitado dead_material
+
+# Generar todas las combinaciones posibles de habitat, treatment, sampling_unit, year y level
+complete_combinations <- trackcover_data %>%
+  select(site, treatment, sampling_unit, year) %>%
+  distinct() %>%
+  tidyr::crossing(level = levels_of_interest)  # Añadimos todos los niveles posibles
+
+# Unir las combinaciones con trackcover_data para asegurar que no falte ninguna combinación
+trackcover_complete <- complete_combinations %>%
+  left_join(trackcover_data, by = c("site", "treatment", "sampling_unit", "year", "level")) %>%
+  mutate(observation = ifelse(is.na(observation), 0, observation))  # Rellenar NA con 0
+
+# Verificar el resultado
+head(trackcover_complete)
+
+
+
+library(dplyr)
+library(tidyr)
+
+# Agrupar por tratamiento, año y nivel, y luego calcular la media, SD y número de observaciones
+summary_data <- trackcover_complete %>%
+  group_by(site, treatment, year, level) %>%
+  summarise(
+    mean_value = mean(observation, na.rm = TRUE),
+    sd_value = sd(observation, na.rm = TRUE),
+    n_samples = n(),
+    .groups = 'drop'  # Esto elimina los grupos después de resumir
+  )
+
+trackcover_complete <- trackcover_complete %>%
+  mutate(sampling_unit_new = str_c(site, treatment, sampling_unit, year, sep = "_"))
+
+n_distinct(trackcover_complete$sampling_unit_new)
+
+# Reorganizar el dataset y quitar los términos "_value" y "_samples" de los nombres
+summary_data_wide <- summary_data %>%
+  pivot_wider(
+    names_from = level,
+    values_from = c(mean_value, sd_value, n_samples),
+    names_glue = "{.value}_{level}"
+  ) %>%
+  rename_with(~ gsub("_value|_samples", "", .), starts_with("mean_"))
+
+# Ver el resultado
+summary_data_wide
+
+#Guardo para BACI
+write.csv(summary_data_wide, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/composition.csv", row.names = FALSE)
+```
+
+Limpio el espacio
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```
+
+
+```{r}
+
+# Agrupamos y resumimos los datos por tratamiento, año, hábitat y nivel
+resumen <- trackcover_data %>%
+  group_by(site,habitat, treatment, year, level) %>%
+  summarise(media = mean(observation, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(tratamiento_año_habitat = factor(interaction(site, habitat, treatment, year),
+                                          levels = sort(unique(interaction(site, habitat, treatment, year)))))
+
+# Visualizar el resumen
+print(resumen)
+
+# Graficar: barras apiladas donde cada barra representa una combinación de hábitat, tratamiento y year
+ggplot(resumen, aes(x = tratamiento_año_habitat, y = media, fill = level)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Hábitat - Tratamiento - Año", y = "Media de Cover Percentage",
+       title = "Composición del Paisaje por Hábitat, Tratamiento y Año") +
+  facet_wrap(~ site) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotar etiquetas del eje X para mayor legibilidad
+
+```
+
+```{r}
+#Creo un nuevo sampling_unit, Para que las estimas de delta sean al comparar conigo mismo. 
+trackcover_data <- trackcover_data %>%
+  mutate(sampling_unit_new = paste(site, habitat, treatment, sampling_unit, sep = "_"))
+
+# Agrupar por 'sampling_unit_new', 'year' y 'level' (especie), y sumar las observaciones
+abundance_matrix <- trackcover_data %>%
+  group_by(sampling_unit_new, year, level) %>%
+  summarise(total_abundance = sum(observation, na.rm = TRUE)) %>%
+  ungroup()  # Desagrupar para las siguientes operaciones
+
+# Convertir a formato de matriz con especies como columnas
+abundance_matrix_wide <- abundance_matrix %>%
+  pivot_wider(names_from = level, values_from = total_abundance, values_fill = list(total_abundance = 0))
+
+# Ver el resultado
+head(abundance_matrix_wide)
+```
+```{r}
+# Primero, seleccionamos solo las columnas relevantes: 'sampling_unit_new', 'year' y las especies
+wide_data <- abundance_matrix_wide %>%
+  pivot_wider(
+    names_from = year,                     # Usamos 'year' para dividir en columnas de 2021 y 2022
+    values_from = -c(sampling_unit_new, year),  # Excluimos 'sampling_unit_new' y 'year', ya que son identificadores
+    names_glue = "{.value}_Y{year}",        # Creamos nombres de columnas como 'species_Y2021' o 'species_Y2022'
+    values_fill = list(abundance = 0)       # Rellenamos los valores faltantes con 0
+)
+
+# Ver la estructura del nuevo dataset
+head(wide_data)
+```
+Es un poco raro, pero voy a ver si la composición de los diferentes elementos de paisaje varía..
+```{r}
+# Calcular la disimilitud de Bray-Curtis entre 2021 y 2022 para cada transecto
+disimilaridad <- wide_data %>%
+  rowwise() %>%
+  mutate(
+    bray_curtis = {
+      # Extraer las columnas de las especies para los años 2021 y 2022
+      datos_2021 <- c_across(ends_with("_Y2021"))
+      datos_2022 <- c_across(ends_with("_Y2022"))
+      
+      # Verificar si hay NA en los datos
+      if (any(is.na(datos_2021)) | any(is.na(datos_2022))) {
+        NA  # Si hay NA, asignar NA a Bray-Curtis
+      } else {
+        # Calcular la disimilitud de Bray-Curtis usando las abundancias de las especies
+        vegdist(rbind(datos_2021, datos_2022), method = "bray")[1]
+      }
+    }
+  ) %>%
+  ungroup() %>%
+  select(sampling_unit_new, bray_curtis)
+
+# Ver el resultado
+head(disimilaridad)
+hist(disimilaridad$bray_curtis)
+```
+
+
+# Ahora transformamos el datasets de diferencias, y le pegamos bray-curtis
+```{r}
+# Filtrar los datos para calcular la diferencia de métricas entre 2021 y 2022
+diferencias <- abundance_matrix_wide %>%
+  filter(year %in% c(2021, 2022)) %>%
+  gather(key = "compontente", value = "valor", Bare_ground, Herbs, Woody_sp, dead_material) %>%
+  spread(key = "year", value = "valor") %>%
+  mutate(diferencia_2022_2021 = `2022` - `2021`) %>%
+  select(sampling_unit_new, compontente, diferencia_2022_2021)
+
+# Eliminar filas con NA
+diferencias <- diferencias %>%
+  drop_na()
+
+# Crear un dataframe para Bray-Curtis que ya has calculado
+disimilaridad_long <- disimilaridad %>%
+  mutate(
+    compontente = "Bray-Curtis",
+    diferencia_2022_2021 = bray_curtis
+  ) %>%
+  select(sampling_unit_new, compontente, diferencia_2022_2021)
+
+# Unir las diferencias de métricas con Bray-Curtis
+diferencias_actualizado <- bind_rows(diferencias, disimilaridad_long)
+
+# Verificamos la estructura final
+str(diferencias_actualizado)
+
+# Separar la columna sampling_unit_new
+diferencias_actualizado <- diferencias_actualizado %>%
+  separate(sampling_unit_new, into = c("site", "habitat", "treatment", "sampling_unit"), sep = "_") %>%
+  select(site, habitat, treatment, sampling_unit, compontente, diferencia_2022_2021)
+
+# Verificar la estructura final
+head(diferencias_actualizado)
+
+```
+A graficar!
+```{r}
+# Ahora podemos graficar los resultados
+
+# Crear un vector de colores para los tratamientos
+colores_tratamientos <- c(
+  "control" = "#6A9373",  # Color para 'control'
+  "high" = "#E6B800",  # Color para 'high'
+  "hyper" = "#9B5F96"  # Color para 'hyper'
+)
+
+
+# Boxplot para Bare_ground
+ggplot(diferencias_actualizado %>% filter(compontente == "Bare_ground"), aes(x = treatment, y = diferencia_2022_2021, fill = treatment)) +
+  geom_boxplot() +  # Boxplot con colores personalizados
+     geom_jitter(width = 0.2, size = 2, alpha = 0.7) +
+  stat_summary(fun = mean, geom = "point", shape = 21, size = 4, color = "black", fill = "black") + 
+  scale_fill_manual(values = colores_tratamientos) +  
+  facet_grid(site ~ ., scales = "free_y") +  # Organiza por sitio
+  labs(
+    title = "Contrastes en Bare_ground entre tratamientos por sitio",
+    x = "Tratamiento",
+    y = "Diferencia en Bare_ground (2022 - 2021)",
+    fill = "Tratamiento"
+  ) +
+  theme_minimal() +  # Tema minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotación del texto en el eje X para mejor visibilidad
+    strip.background = element_rect(fill = "lightblue", color = "black"),  # Fondo de las etiquetas de los gráficos
+    strip.text = element_text(face = "bold", color = "black"),  # Estilo de las etiquetas
+    panel.border = element_rect(color = "black", fill = NA, size = 1)  # Encadre de los paneles
+  )
+
+
+# Boxplot para "Bare_ground", "Herbs", "Woody_sp", "dead_material"
+ggplot(diferencias_actualizado %>% filter(compontente %in% c("Bare_ground", "Herbs", "Woody_sp", "dead_material")), aes(x = treatment, y = diferencia_2022_2021, fill = treatment)) +
+  geom_boxplot() +  # Boxplot con colores personalizados
+     geom_jitter(width = 0.2, size = 2, alpha = 0.7) +
+  stat_summary(fun = mean, geom = "point", shape = 21, size = 4, color = "black", fill = "black") + 
+  scale_fill_manual(values = colores_tratamientos) +  
+  facet_grid(site ~ compontente, scales = "free_y") +  # Organiza por sitio y métrica
+  labs(
+    title = "Contrastes en RBare_ground, Herbs, Woody_sp, dead_material entre tratamientos por sitio",
+    x = "Tratamiento",
+    y = "Diferencia en la compontente (2022 - 2021)",
+    fill = "Tratamiento"
+  ) +
+  theme_minimal()+  # Tema minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotación del texto en el eje X para mejor visibilidad
+    strip.background = element_rect(fill = "lightblue", color = "black"),  # Fondo de las etiquetas de los gráficos
+    strip.text = element_text(face = "bold", color = "black"),  # Estilo de las etiquetas
+    panel.border = element_rect(color = "black", fill = NA, size = 1)  # Encadre de los paneles
+  )
+
+# Boxplot para Bray-Curtis
+ggplot(diferencias_actualizado %>% filter(compontente == "Bray-Curtis"), aes(x = treatment, y = diferencia_2022_2021, fill = treatment)) +
+  geom_boxplot() +  # Boxplot con colores personalizados
+   geom_jitter(width = 0.2, size = 2, alpha = 0.7) +
+  stat_summary(fun = mean, geom = "point", shape = 21, size = 4, color = "black", fill = "black") + 
+  scale_fill_manual(values = colores_tratamientos) +  
+  facet_grid(site ~ ., scales = "free_y") +  # Organiza por sitio
+  labs(
+    title = "Contrastes en Bray-Curtis entre tratamientos por sitio",
+    x = "Tratamiento",
+    y = "Diferencia en Bray-Curtis (2022 - 2021)",
+    fill = "Tratamiento"
+  ) +
+  theme_minimal() +  # Tema minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotación del texto en el eje X para mejor visibilidad
+    strip.background = element_rect(fill = "lightblue", color = "black"),  # Fondo de las etiquetas de los gráficos
+    strip.text = element_text(face = "bold", color = "black"),  # Estilo de las etiquetas
+    panel.border = element_rect(color = "black", fill = NA, size = 1)  # Encadre de los paneles
+  )
+```
+
+Guardo datos procesados en nuevo formato
+```{r}
+diferencias_actualizado <- diferencias_actualizado %>%
+  rename(indice = compontente)
+
+landscape_composition_delta <- diferencias_actualizado %>%
+  mutate(indice = recode(indice,
+                         "Bare_ground" = "delta_abundancia_Bare_ground",
+                         "Herbs" = "delta_abundancia_Herbs",
+                         "Woody_sp" = "delta_abundancia_Woody_sps",
+                         "dead_material" = "delta_abundancia_Woody_dead_material",
+                         "Bray-Curtis" = "delta_braycurtis_landscape_composition"))
+
+landscape_composition_delta <- landscape_composition_delta %>%
+  rename(valor = diferencia_2022_2021)
+
+landscape_composition_delta <- landscape_composition_delta %>%
+  mutate(sampling_unit = paste0(sampling_unit, "_", habitat))
+
+```
+
+## Clean data save
+```{r}
+write.csv(landscape_composition_delta, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/taxonomy/landscape_composition_delta.csv", row.names = FALSE)
+```
+
+Limpio el espacio
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```

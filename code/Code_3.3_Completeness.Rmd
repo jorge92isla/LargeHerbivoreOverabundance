@@ -1,0 +1,544 @@
+---
+title: "Code_3.3_Completeness"
+author: "Jorge"
+date: "2025-07-15"
+output: html_document
+---
+
+```{r}
+library(iNEXT)
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(tidyverse)
+library(ggiraphExtra)
+```
+
+SANMPLING COMPLETENESS CODE
+```{r}
+ants <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/ants_clean_data.csv")
+birds <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/birds_clean_data.csv")
+herbs <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/herbs_clean_data.csv") 
+inver <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/invertebratestaxonomy_clean_data.csv")
+polli <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/pollination_clean_data.csv")
+woody <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/woody_cover_clean_data.csv") 
+regen_raw <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/regeneracion_clean_data.csv") 
+```
+Arreglamos regen que está mal
+```{r}
+regen <- regen_raw %>%
+  mutate(
+    habitat = NA_character_,                          # 2. Añade columna 'habitat' con NA
+    plot = track,                                     # 4. 'track' se convierte en 'plot'
+    date = as.Date(NA),                               # 7. 'date' como NA
+    variable_type = "regeneración",                   # 8. valor fijo
+    variable_name = "seedlings_count",                # 9. valor fijo
+    level = species,                                  # 10. 'species' pasa a 'level'
+    units = "n_individuos",                           # 12. unidades de 'observation'
+    comments = NA,                                     # 13. comentarios como NA
+    author_code = NA                                   # 14. autor como NA
+  ) %>%
+  select(
+    site,
+    habitat,
+    treatment,
+    plot,
+    sampling_unit,
+    year,
+    date,
+    variable_type,
+    variable_name,
+    level,
+    observation,
+    units,
+    comments,
+    author_code
+  )
+
+regen <- regen %>%
+  mutate(author_code = sampling_unit)
+```
+
+# Hormigas 🐜
+```{r}
+# 1. Preparar datos como incidencia (presencia/ausencia) por pitfall
+ant_incidence <- ants %>%
+  filter(!is.na(level), observation > 0) %>%
+  # Convertir a presencia/ausencia (1 = presente en el pitfall, 0 = ausente)
+  mutate(presence = 1) %>% 
+  # Pivotar: filas = especies, columnas = pitfalls (author_code)
+  pivot_wider(id_cols = level, 
+              names_from = author_code, 
+              values_from = presence, 
+              values_fill = 0) %>%
+  column_to_rownames("level") %>%
+  as.matrix()
+
+# 2. Crear lista por sitio (si es necesario)
+# Si necesitas separar por sitio (toledo/valencia):
+site_list <- ants %>% distinct(author_code, site) %>% deframe()
+ant_incidence_list <- split(colnames(ant_incidence), site_list[colnames(ant_incidence)]) %>%
+  map(~ ant_incidence[, .x])
+
+# 3. Análisis iNEXT con datatype = "incidence_raw"
+out_incidence <- iNEXT(ant_incidence_list, 
+                      q = 0, 
+                      datatype = "incidence_raw", 
+                      nboot = 100)
+
+# 4. Gráfico personalizado
+plot_pitfalls <- ggiNEXT(out_incidence, type = 1) +
+  labs(
+    x = "Number of pitfall traps",
+    y = "Species richness",
+    title = "Ants",
+  ) +
+  scale_color_manual(values = c("toledo" = "#E69F00", "valencia" = "#56B4E9")) +
+  theme_bw() +
+  theme(legend.position = "bottom")+
+  xlim(0, 190)   # <- aquí defines el límite del eje x manualmente
+
+# Mostrar gráfico
+print(plot_pitfalls)
+
+# 5. Métricas clave
+coverage <- DataInfo(ant_incidence_list, datatype = "incidence_raw")$SC
+cat("Coverage de muestreo:\n Toledo =", coverage[1], "\n Valencia =", coverage[2])
+```
+# Aves 🦅
+```{r}
+birds$author_code <- as.factor(birds$comments)
+
+# 1. Corregir la estructura del dataframe primero
+birds_corrected <- birds %>%
+  mutate(
+    author_code = as.character(author_code),  # Convertir a carácter
+    presence = 1L  # Usar integer para presencia
+  ) %>%
+  select(level, author_code, presence) %>%
+  # Eliminar posibles duplicados (misma especie en mismo censo)
+  distinct(level, author_code, .keep_all = TRUE)
+
+# 2. Crear matriz de incidencia
+bird_incidence <- birds_corrected %>%
+  pivot_wider(
+    id_cols = level,
+    names_from = author_code,
+    values_from = presence,
+    values_fill = list(presence = 0L)  # 0 como integer
+  ) %>%
+  column_to_rownames("level") %>%
+  as.matrix()
+
+# Verificar dimensiones
+print(dim(bird_incidence))  # Debería ser: [n_especies] x [n_censos]
+
+# 3. Análisis iNEXT
+bird_incidence_list <- list(toledo = bird_incidence)
+
+out_birds <- iNEXT(
+  bird_incidence_list,
+  q = 0,
+  datatype = "incidence_raw",
+  nboot = 100
+)
+
+# 4. Gráfico
+plot_censos <- ggiNEXT(out_birds, type = 1) +
+  labs(
+    x = "Number of bird censuses",
+    y = "Species richness",
+    title = "Birds",
+  ) +
+    scale_color_manual(values = c("toledo" = "#E69F00", "valencia" = "#56B4E9")) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+print(plot_censos)
+
+# 5. Métricas de completitud
+coverage <- DataInfo(bird_incidence_list, "incidence_raw")$SC
+cat("Coverage de muestreo:", round(coverage, 3))
+
+```
+# Herbs 🌼
+```{r}
+ # 0. Preparar columna author_code
+herbs <- herbs %>%
+  mutate(
+    author_code = factor(paste(site, habitat, treatment, sampling_unit, year, sep = "_"))
+  )
+
+# 1. Preparar datos de incidencia para plantas leñosas
+herbs_incidence <- herbs %>%
+  filter(!is.na(level), observation > 0) %>%
+  # Convertir author_code a carácter y crear variable presencia
+  mutate(author_code = as.character(author_code),
+         presence = 1L) %>%  
+  # Seleccionar solo las columnas necesarias
+  select(level, author_code, presence) %>%
+  # Eliminar duplicados (misma especie en mismo transecto)
+  distinct(level, author_code, .keep_all = TRUE) %>%
+  # Pivotar a formato ancho: especies vs transectos
+  pivot_wider(
+    id_cols = level,
+    names_from = author_code,
+    values_from = presence,
+    values_fill = list(presence = 0L)
+  ) %>%
+  # Convertir a matriz con nombres de filas
+  column_to_rownames("level") %>%
+  as.matrix()
+
+# 2. Verificar la estructura
+cat("Dimensiones de la matriz (especies x herbácea):", dim(herbs_incidence), "\n")
+cat("Número de cuadras muestreados:", ncol(herbs_incidence), "\n")
+cat("Número de especies herbaceas registradas:", nrow(herbs_incidence), "\n")
+
+# 3. Crear lista por sitio (Toledo y Valencia)
+site_list_herbs <- herbs %>% distinct(author_code, site) %>% deframe()
+herbs_incidence_list <- split(colnames(herbs_incidence), site_list_herbs[colnames(herbs_incidence)]) %>%
+  map(~ herbs_incidence[, .x])
+
+# 4. Análisis de rarefacción/extrapolación
+out_herbs <- iNEXT(
+  herbs_incidence_list,
+  q = 0,                    
+  datatype = "incidence_raw",
+  nboot = 100,
+  endpoint = 300)
+
+# 5. Visualización personalizada para vegetación herbácea
+plot_herbs <- ggiNEXT(out_herbs, type = 1) +
+  labs(
+    x = "Number of quadrats",
+     y = "Species richness",
+    title = "Herbaceous vegetation"
+  ) +
+  scale_color_manual(values = c("toledo" = "#E69F00", "valencia" = "#56B4E9")) +
+  theme_bw(base_size = 14) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.major = element_line(linetype = "dashed", color = "grey90"),
+    plot.title = element_text(hjust = 0.5, face = "bold", color = "#1A1A1A"),
+    plot.subtitle = element_text(hjust = 0.5, color = "grey40")
+  ) +
+  xlim(0, 300)   # <- aquí defines el límite del eje x manualmente
+
+# Mostrar gráfico
+print(plot_herbs)
+
+# 6. Calcular métricas de completitud por sitio
+coverage_herbs <- DataInfo(herbs_incidence_list, "incidence_raw")$SC
+cat("\nCoverage de muestreo:\n Toledo =", round(coverage_herbs[1], 3),
+    "\n Valencia =", round(coverage_herbs[2], 3), "\n")
+```
+# Woody species 🌳
+```{r}
+# 0. Preparar columna author_code (aquí ya no filtramos solo Toledo)
+woody <- woody %>%
+  mutate(
+    author_code = factor(paste(site, habitat, treatment, sampling_unit, year, sep = "_"))
+  )
+
+# 1. Preparar datos de incidencia para plantas leñosas
+woody_incidence <- woody %>%
+  filter(!is.na(level), observation > 0) %>%
+  # Convertir author_code a carácter y crear variable presencia
+  mutate(author_code = as.character(author_code),
+         presence = 1L) %>%  
+  # Seleccionar solo las columnas necesarias
+  select(level, author_code, presence) %>%
+  # Eliminar duplicados (misma especie en mismo transecto)
+  distinct(level, author_code, .keep_all = TRUE) %>%
+  # Pivotar a formato ancho: especies vs transectos
+  pivot_wider(
+    id_cols = level,
+    names_from = author_code,
+    values_from = presence,
+    values_fill = list(presence = 0L)
+  ) %>%
+  # Convertir a matriz con nombres de filas
+  column_to_rownames("level") %>%
+  as.matrix()
+
+# 2. Verificar la estructura
+cat("Dimensiones de la matriz (especies x transectos):", dim(woody_incidence), "\n")
+cat("Número de transectos muestreados:", ncol(woody_incidence), "\n")
+cat("Número de especies leñosas registradas:", nrow(woody_incidence), "\n")
+
+# 3. Crear lista por sitio (Toledo y Valencia)
+site_list_woody <- woody %>% distinct(author_code, site) %>% deframe()
+woody_incidence_list <- split(colnames(woody_incidence), site_list_woody[colnames(woody_incidence)]) %>%
+  map(~ woody_incidence[, .x])
+
+# 4. Análisis de rarefacción/extrapolación
+out_woody <- iNEXT(
+  woody_incidence_list,
+  q = 0,                    
+  datatype = "incidence_raw",
+  nboot = 100, endpoint = 100)
+
+# 5. Visualización personalizada para vegetación leñosa
+plot_woody <- ggiNEXT(out_woody, type = 1) +
+  labs(
+    x = "Number of linear transects",
+      y = "Species richness",
+    title = "Woody vegetation"
+  ) +
+  scale_color_manual(values = c("toledo" = "#E69F00", "valencia" = "#56B4E9")) +
+  theme_bw(base_size = 14) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.major = element_line(linetype = "dashed", color = "grey90"),
+    plot.title = element_text(hjust = 0.5, face = "bold", color = "#1A1A1A"),
+    plot.subtitle = element_text(hjust = 0.5, color = "grey40")
+  )+
+  xlim(0, 100)   # <- aquí defines el límite del eje x manualmente
+
+# Mostrar gráfico
+print(plot_woody)
+
+# 6. Calcular métricas de completitud por sitio
+coverage_woody <- DataInfo(woody_incidence_list, "incidence_raw")$SC
+cat("\nCoverage de muestreo:\n Toledo =", round(coverage_woody[1], 3),
+    "\n Valencia =", round(coverage_woody[2], 3), "\n")
+
+
+
+```
+# Epigeic Invertebrates 🕷️
+```{r}
+# 1. Preparar datos de incidencia para invertebrados epigeos
+inver_incidence <- inver %>%
+  filter(!is.na(level), observation > 0) %>%
+  # Asegurar formato correcto
+  mutate(author_code = as.character(author_code),
+         presence = 1L) %>%  # 1L para presencia como integer
+  # Seleccionar columnas relevantes
+  select(site, level, author_code, presence) %>%
+  # Eliminar duplicados (misma especie en mismo pitfall)
+  distinct(site, level, author_code, .keep_all = TRUE) %>%
+  # Pivotar por sitio
+  group_by(site) %>%
+  group_map(~ {
+    .x %>%
+      pivot_wider(
+        id_cols = level,
+        names_from = author_code,
+        values_from = presence,
+        values_fill = list(presence = 0L)
+      ) %>%
+      column_to_rownames("level") %>%
+      as.matrix()
+  })
+
+# 2. Nombrar las matrices por sitio
+names(inver_incidence) <- c("toledo", "valencia")
+
+# 3. Verificación
+cat("Número de pitfalls en Toledo:", ncol(inver_incidence$toledo), "\n")
+cat("Número de pitfalls en Valencia:", ncol(inver_incidence$valencia), "\n")
+cat("Número total de especies:", nrow(inver_incidence[[1]]), "\n")
+
+# 4. Análisis iNEXT
+out_inver <- iNEXT(
+  inver_incidence,
+  q = 0,
+  datatype = "incidence_raw",
+  nboot = 100, endpoint = 190)
+
+# 5. Visualización
+plot_inver <- ggiNEXT(out_inver, type = 1) +
+  labs(
+    x = "Number of pitfall traps",
+     y = "Species richness",
+    title = "Epigeic invertebrates",
+  )   +
+  scale_color_manual(values = c("toledo" = "#E69F00", "valencia" = "#56B4E9")) +
+  theme_bw() +
+  theme(legend.position = "bottom")+
+  xlim(0, 190)   # <- aquí defines el límite del eje x manualmente
+
+
+# 6. Métricas de completitud
+
+
+print(plot_inver)
+
+coverage <- DataInfo(inver_incidence, datatype = "incidence_raw")$SC
+cat("Coverage de muestreo:\n Toledo =", coverage[1], "\n Valencia =", coverage[2])
+
+```
+# Regenertion 🌱
+```{r}
+regen$author_code <- as.factor(regen$sampling_unit)
+
+# 1. Preparar datos de incidencia para regeneración leñosa
+regen_incidence <- regen %>%
+  filter(!is.na(level), observation > 0) %>%
+  mutate(author_code = as.character(author_code),
+         presence = 1L) %>%
+  select(site, level, author_code, presence) %>%
+  distinct(level, author_code, .keep_all = TRUE) %>%
+  pivot_wider(
+    id_cols = level,
+    names_from = author_code,
+    values_from = presence,
+    values_fill = list(presence = 0L)
+  ) %>%
+  column_to_rownames("level") %>%
+  as.matrix()
+
+# 2. Crear lista por sitio (igual que con ants)
+site_list <- regen %>% distinct(author_code, site) %>% deframe()
+
+regen_incidence_list <- split(colnames(regen_incidence),
+                              site_list[colnames(regen_incidence)]) %>%
+  map(~ regen_incidence[, .x])
+
+# 3. Análisis de rarefacción/extrapolación
+out_regen <- iNEXT(
+  regen_incidence_list,
+  q = 0,
+  datatype = "incidence_raw",
+  nboot = 100,
+  endpoint = 100)
+
+# 4. Gráfico
+plot_regen <- ggiNEXT(out_regen, type = 1) +
+  labs(
+    x = "Number of linear transects",
+     y = "Species richness",
+    title = "Regeneration of woody plant species"
+  ) +
+  scale_color_manual(values = c("toledo" = "#E69F00", "valencia" = "#56B4E9")) +
+  theme_bw(base_size = 14) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.major = element_line(linetype = "dashed", color = "grey90"),
+    plot.title = element_text(hjust = 0.5, face = "bold", color = "#1A1A1A"),
+    plot.subtitle = element_text(hjust = 0.5, color = "grey40"),
+    plot.caption = element_text(hjust = 1)
+  )+
+  xlim(0, 100)   # <- aquí defines el límite del eje x manualmente
+
+print(plot_regen)
+
+# 5. Cobertura
+coverage_regen <- DataInfo(regen_incidence_list, "incidence_raw")$SC
+cat("\nCoverage de muestreo para regeneración leñosa:\n")
+print(round(coverage_regen, 3))
+
+```
+
+# Pollination 🌼🐝
+```{r}
+polli <- polli %>%
+  mutate(
+    author_code = factor(paste(site, habitat, treatment, sampling_unit, year , sep = "_"))
+  )
+
+# 1. Preparar datos de incidencia para interacciones de polinización
+polli_incidence <- polli %>%
+  filter(!is.na(level), observation > 0) %>%
+  # Convertir author_code a carácter y crear variable presencia
+  mutate(author_code = as.character(author_code),
+         presence = 1L) %>%  # 1L indica presencia como integer
+  # Seleccionar columnas relevantes
+  select(level, author_code, presence) %>%
+  # Eliminar duplicados (misma interacción en misma unidad de muestreo)
+  distinct(level, author_code, .keep_all = TRUE) %>%
+  # Pivotar a formato ancho: interacciones vs unidades de muestreo
+  pivot_wider(
+    id_cols = level,
+    names_from = author_code,
+    values_from = presence,
+    values_fill = list(presence = 0L)  # 0L para ausencia como integer
+  ) %>%
+  # Convertir a matriz con nombres de filas
+  column_to_rownames("level") %>%
+  as.matrix()
+
+# 2. Verificar la estructura
+cat("Dimensiones de la matriz (interacciones x unidades):", dim(polli_incidence), "\n")
+cat("Número de unidades de muestreo:", ncol(polli_incidence), "\n")
+cat("Número de interacciones únicas:", nrow(polli_incidence), "\n")
+
+# 3. Crear lista para iNEXT (asumiendo solo Toledo)
+polli_incidence_list <- list(toledo = polli_incidence)
+
+# 4. Análisis de rarefacción/extrapolación
+out_polli <- iNEXT(
+  polli_incidence_list,
+  q = 0,                    # Riqueza de interacciones
+  datatype = "incidence_raw",
+  nboot = 100               # Número de réplicas bootstrap
+)
+
+# 5. Visualización personalizada para polinización
+plot_polli <- ggiNEXT(out_polli, type = 1) +
+  labs(
+    x = "Number of pollination networks",
+    y = "Species richness",
+    title = "Unique pairwise pollination interactions",
+  ) +
+  scale_color_manual(values = c("toledo" = "#E69F00")) +  # Color púrpura para polinización
+  theme_bw(base_size = 14) +
+  theme(
+    legend.position = "none",
+    panel.grid.major = element_line(linetype = "dashed", color = "grey90"),
+    plot.title = element_text(hjust = 0.5, face = "bold", color = "#1A1A1A"),
+    plot.subtitle = element_text(hjust = 0.5, color = "grey40")
+  )
+
+# Mostrar gráfico
+print(plot_polli)
+
+# 6. Calcular métricas de completitud
+coverage_polli <- DataInfo(polli_incidence_list, "incidence_raw")$SC
+cat("\nCoverage de muestreo para interacciones:", round(coverage_polli, 3), "\n")
+
+```
+
+```{r}
+library(patchwork)
+
+# 1. Aplicar tema común a todos los gráficos (opcional)
+base_theme <- theme_bw(base_size = 12) +
+  theme(plot.margin = margin(5, 5, 5, 5),
+        plot.title = element_text(size = 12))
+
+plot_list <- list(plot_pitfalls, plot_inver, plot_herbs, plot_woody, 
+                 plot_censos, plot_regen,  plot_polli) %>%
+  map(~ .x + base_theme + theme(legend.position = "right"))
+
+# 2. Crear panel con 2 columnas y etiquetas
+panel_final <- wrap_plots(plot_list, ncol = 2) +
+  plot_annotation(
+    tag_levels = 'A',
+    title = "Interpolation and Extrapolation with Hill numbers for sampling completeness",
+      subtitle = "100 bootstrap replicates for CI",
+    theme = theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 18),
+      plot.subtitle = element_text(hjust = 0.5, color = "gray40", size = 14)
+    )
+  )
+
+# 3. Ajustar proporciones y espacios
+panel_final <- panel_final & 
+  theme(plot.tag = element_text(face = "bold", size = 14))
+
+# 4. Exportar (ajusta dimensiones según necesidad)
+ggsave(
+  "~/Documents/GitHub/PAELLALAB/INCREMENTO/figures/Manuscript/Sup_Mat/panel_completeness.pdf",
+  plot = panel_final,
+  width = 16,
+  height = 20,
+  dpi = 300,
+  device = cairo_pdf   # opcional pero recomendado para PDFs de alta calidad
+)
+```
+

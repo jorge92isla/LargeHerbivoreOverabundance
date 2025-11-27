@@ -1,0 +1,49 @@
+---
+title: "Code_2.4_woody_heigh"
+author: "Jorge"
+date: "2025-04-09"
+output: html_document
+---
+
+🌳 👆
+
+Voy a preparar los datos de altura de la vegeteación para el análisis BACI
+```{r}
+# Cargar las librerías necesarias
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(ggforce)
+```
+
+
+```{r}
+# Cargar el archivo de datos
+woody_height_data <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/woody_height_clean_data.csv")
+# Revisar la estructura de los datos cargados
+head(woody_height_data)
+
+# Filtrar para eliminar las filas donde 'site' sea igual a "valencia". En Valencia solamente se hicieron transectos en 2022, no en 2021. Por lo que no podemos aprovechar ahí la potencia del diseño BACI.
+#woody_height_data <- woody_height_data %>%
+#  filter(site != "valencia")
+
+head(woody_height_data)
+```
+
+## Clean data save woody_height
+```{r}
+write.csv(woody_height_data, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/woody_height.csv", row.names = FALSE)
+```
+
+Limpio el espacio
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```

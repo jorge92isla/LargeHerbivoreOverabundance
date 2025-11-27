@@ -1,0 +1,138 @@
+---
+title: "Code_2.5_birds_taxonomy_delta"
+author: "Jorge"
+date: "2025-03-13"
+output: html_document
+---
+🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉🦉
+
+This code clean the birds dataset and calculates ant richness, diversity, and abundance for each sampling unit (censuses).
+
+```{r}
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(ggforce)
+```
+
+## Data loading
+```{r}
+birds_data <- read_csv("~/Documents/GitHub/LargeHerbivoreOverabundance/data/birds_clean_data.csv")
+head(birds_data)
+```
+
+```{r}
+#I create sampling unit
+birds_data <- birds_data %>%
+  mutate(sampling_unit_new = paste(site, habitat, treatment, sampling_unit, year, sep = "_"))
+```
+
+## Fixing names
+```{r}
+
+birds_data <- birds_data %>%
+  mutate(observation = as.numeric(observation))  
+
+
+birds_data <- birds_data %>%
+  filter(!level %in% c("No_birds", "NADA,_bajada barranco"))
+birds_data <- birds_data %>%
+  mutate(level = str_replace(level, "turdus_merula", "Turdus_merula"))
+birds_data <- birds_data %>%
+  mutate(level = str_replace(level, "Dendrocopus_majus", "Dendrocopus_major"))
+birds_data <- birds_data %>%
+  mutate(level = str_replace(level, "Phyllocopus_boneli", "Phylloscopus_bonelii"))
+
+
+all_combinations <- expand_grid(
+  sampling_unit_new = unique(birds_data$sampling_unit_new),
+  level = unique(birds_data$level)
+)
+
+
+birds_complete <- all_combinations %>%
+  left_join(birds_data, by = c("sampling_unit_new", "level")) %>%
+  mutate(observation = ifelse(is.na(observation), 0, observation))
+
+
+
+birds_complete <- birds_complete %>%
+  separate(sampling_unit_new, into = c("site", "habitat", "treatment", "sampling_unit", "year"), 
+           sep = "_", remove = FALSE, convert = TRUE) %>%
+  mutate(across(everything(), ~ ifelse(is.na(.), get(substitute(.)), .)))
+
+
+head(birds_complete)
+```
+
+## Matrix creation
+```{r}
+# Crear la matriz de comunidad
+birds_matrix <- birds_complete %>%
+  select(sampling_unit_new, level, observation)
+
+birds_matrix_manual <- birds_matrix %>%
+  group_by(sampling_unit_new, level) %>%
+  summarise(observation = sum(observation, na.rm = TRUE)) %>%  
+  spread(key = level, value = observation, fill = 0)  
+
+# Ver la matriz resultante
+head(birds_matrix_manual)
+str(birds_matrix_manual)
+```
+
+# Compute metrics
+```{r}
+species_matrix <- birds_matrix_manual[, -1]
+
+birds_matrix_manual<-as.data.frame(birds_matrix_manual)
+# 2. Calcular los números de Hill para cada transecto
+birds_matrix_manual <- birds_matrix_manual %>%
+  mutate(
+    Riqueza = rowSums(species_matrix > 0),  # Hill q = 0 (número de especies presentes)
+    Shannon = exp(vegan::diversity(species_matrix, index = "shannon")),  # Hill q = 1 (índice de Shannon)
+    Simpson = vegan::diversity(species_matrix, index = "invsimpson"),  # Hill q = 2 (índice de Simpson)
+    Abundancia = rowSums(species_matrix)  # Suma total de individuos
+  )
+
+# 3. Reorganizar el dataframe para incluir solo las columnas necesarias
+birds_matrix_manual <- birds_matrix_manual %>%
+  select(sampling_unit_new, Riqueza, Shannon, Simpson, Abundancia)
+
+# 4. Verificar la estructura final de birds_matrix_manual
+str(birds_matrix_manual)
+```
+
+```{r}
+# 1. Spliting 'sampling_unit_new'
+birds_matrix_manual <- birds_matrix_manual %>%
+  mutate(
+    Sitio = sub("^(.*?)_.*", "\\1", sampling_unit_new),        
+    Habitat = sub("^.*?_(.*?)_.*", "\\1", sampling_unit_new),    
+    Tratamiento = sub("^.*?_.*?_(.*?)_.*", "\\1", sampling_unit_new),  
+    Transecto = sub("^.*?_.*?_.*?_(.*?)_.*", "\\1", sampling_unit_new),  
+    Año = sub("^.*?_.*?_.*?_([0-9]{4})$", "\\1", sampling_unit_new)  
+  )
+```
+
+## Clean data save for baci
+```{r}
+write.csv(birds_matrix_manual, file = "/Users/jorgeislaescudero/Documents/GitHub/LargeHerbivoreOverabundance/data/data_for_EffectSizes/birds.csv", row.names = FALSE)
+```
+
+Space cleaning
+```{r}
+rm(list = ls())
+gc()
+cat("\014")
+```
+
+
+
+
+
+
+
+
+

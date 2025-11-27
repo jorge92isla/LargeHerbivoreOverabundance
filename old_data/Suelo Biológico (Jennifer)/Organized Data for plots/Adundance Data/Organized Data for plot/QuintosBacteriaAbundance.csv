@@ -1,0 +1,114 @@
+﻿Group,Taxa,Abundance
+Treatment A,Acidobacteria,12.21 
+Treatment A,Actinobacteria,13.24 
+Treatment A,Armatimonadetes,1.36 
+Treatment A,Bacteroidetes,7.73 
+Treatment A,Chlamydiae,0.43 
+Treatment A,Chloroflexi,1.19 
+Treatment A,Eremiobacterota,0.21 
+Treatment A,WPS-1 Division,3.76 
+Treatment A,Planctomycetes,7.21 
+Treatment A,Proteobacteria,23.35 
+Treatment A,Verrucomicrobia,10.40 
+Treatment A,Cyanobacteria,0.27 
+Treatment A,Firmicutes,0.71 
+Treatment A,Gemmatimonadetes,1.77 
+Treatment A,Latescibacteria,0.21 
+Treatment A,Microgenomates,0.21 
+Treatment A,Nitrospirae,0.22 
+Treatment A,Parcubacteria,0.74 
+Treatment A,BRC1 Division,0.94 
+Treatment A,Saccharibacteria,1.99 
+Treatment A,Others,11.85 
+Treatment B,Abditibacteriota,0.22 
+Treatment B,Acidobacteria,12.45 
+Treatment B,Actinobacteria,13.76 
+Treatment B,Armatimonadetes,1.01 
+Treatment B,BRC1 Division,0.27 
+Treatment B,Bacteroidetes,7.23 
+Treatment B,Chlamydiae,0.38 
+Treatment B,Chloroflexi,1.72 
+Treatment B,Gemmatimonadetes,1.79 
+Treatment B,Latescibacteria,0.22 
+Treatment B,Microgenomates,0.21 
+Treatment B,Nitrospirae,0.25 
+Treatment B,Parcubacteria,0.65 
+Treatment B,Planctomycetes,7.38 
+Treatment B,Proteobacteria,22.91 
+Treatment B,Spirochaetes,0.21 
+Treatment B,Verrucomicrobia,9.66 
+Treatment B,Cyanobacteria,0.27 
+Treatment B,Firmicutes,0.80 
+Treatment B,WPS-1 Division,3.43 
+Treatment B,Eremiobacterota,0.29 
+Treatment B,Saccharibacteria,1.68 
+Treatment B,Others,13.21 
+Control,Abditibacteriota,0.21 
+Control,Acidobacteria,12.66 
+Control,Actinobacteria,13.14 
+Control,Armatimonadetes,1.19 
+Control,BRC1 Division,0.27 
+Control,Bacteroidetes,6.82 
+Control,Chlamydiae,0.47 
+Control,Chloroflexi,1.56 
+Control,Gemmatimonadetes,1.87 
+Control,Latescibacteria,0.24 
+Control,Microgenomates,0.21 
+Control,Nitrospirae,0.26 
+Control,Parcubacteria,0.74 
+Control,Planctomycetes,7.09 
+Control,Proteobacteria,21.84 
+Control,Spirochaetes,0.23 
+Control,Verrucomicrobia,10.06 
+Control,Cyanobacteria,0.43 
+Control,Firmicutes,0.90 
+Control,WPS-1 Division,3.21 
+Control,Eremiobacterota,0.31 
+Control,Saccharibacteria,1.77 
+Control,Others,14.52 
+Shrub,Abditibacteriota,0.22 
+Shrub,Acidobacteria,12.05 
+Shrub,Actinobacteria,14.91 
+Shrub,Armatimonadetes,1.53 
+Shrub,BRC1 Division,0.24 
+Shrub,Bacteroidetes,5.59 
+Shrub,Chlamydiae,0.44 
+Shrub,Chloroflexi,1.83 
+Shrub,Gemmatimonadetes,1.67 
+Shrub,Latescibacteria,0.21 
+Shrub,Microgenomates,0.21 
+Shrub,Nitrospirae,0.21 
+Shrub,Parcubacteria,0.48 
+Shrub,Planctomycetes,8.71 
+Shrub,Proteobacteria,21.81 
+Shrub,Spirochaetes,0.20 
+Shrub,Verrucomicrobia,9.87 
+Shrub,Cyanobacteria,0.46 
+Shrub,Firmicutes,0.81 
+Shrub,WPS-1 Division,4.08 
+Shrub,Eremiobacterota,0.41 
+Shrub,Saccharibacteria,1.90 
+Shrub,Others,12.16 
+Forest,Abditibacteriota,0.22 
+Forest,Acidobacteria,12.73 
+Forest,Actinobacteria,12.15 
+Forest,Armatimonadetes,0.93 
+Forest,BRC1 Division,0.29 
+Forest,Bacteroidetes,8.60 
+Forest,Chlamydiae,0.42 
+Forest,Chloroflexi,1.21 
+Forest,Gemmatimonadetes,1.91 
+Forest,Latescibacteria,0.23 
+Forest,Microgenomates,0.21 
+Forest,Nitrospirae,0.27 
+Forest,Parcubacteria,0.89 
+Forest,Planctomycetes,6.08 
+Forest,Proteobacteria,23.42 
+Forest,Spirochaetes,0.22 
+Forest,Verrucomicrobia,10.21 
+Forest,Cyanobacteria,0.21 
+Forest,Firmicutes,0.79 
+Forest,WPS-1 Division,2.99 
+Forest,Eremiobacterota,0.24 
+Forest,Saccharibacteria,1.75 
+Forest,Others,14.03 

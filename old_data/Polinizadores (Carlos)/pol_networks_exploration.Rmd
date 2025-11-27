@@ -1,0 +1,52 @@
+---
+title: "ok"
+author: "Jorge"
+date: "2025-01-28"
+output: html_document
+---
+
+Libraries loading
+```{r}
+library(tools)
+
+```
+
+
+```{r}
+# Definir las rutas de las carpetas
+carpetas <- c("redes21", "redes22")
+
+# Crear una lista para almacenar las matrices
+matrices <- list()
+
+# Recorrer cada carpeta
+for (carpeta in carpetas) {
+  # Obtener la lista de archivos .txt en la carpeta
+  archivos <- list.files(path = carpeta, pattern = "\\.txt$", full.names = TRUE)
+  
+  # Recorrer cada archivo
+  for (archivo in archivos) {
+    # Leer el archivo
+    datos <- read.table(archivo, header = TRUE, row.names = 1, sep = "\t")
+    
+    # Convertir a matriz de adyacencia
+    matriz_adyacencia <- as.matrix(datos)
+    
+    # Obtener el nombre del archivo sin la extensión
+    nombre_archivo <- file_path_sans_ext(basename(archivo))
+    
+    # Asignar la matriz a una variable con el nombre del archivo
+    assign(nombre_archivo, matriz_adyacencia)
+    
+    # Guardar la matriz en la lista
+    matrices[[nombre_archivo]] <- matriz_adyacencia
+  }
+}
+
+# Verificar las matrices cargadas
+print(ls())  # Muestra las variables creadas
+print(names(matrices))  # Muestra los nombres de las matrices en la lista
+
+```
+
+

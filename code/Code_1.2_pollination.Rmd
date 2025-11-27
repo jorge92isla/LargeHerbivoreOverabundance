@@ -1,0 +1,250 @@
+---
+title: "Code_2.2_pollination"
+author: "Jorge Isla"
+date: "2025-03-19"
+output: html_document
+---
+
+🌼🐝🌼🌼🐝🌼🌼🐝🌼🌼🐝🌼🌼🐝🌼🌼🐝🌼🌼🐝🌼🌼🐝🌼🌼🐝🌼🌼🐝🌼🌼🐝🌼🌼🐝🌼🌼🐝🌼
+
+This code works on pollination dataset and calculates network metrics.
+
+### Pacakage loading
+
+```{r message=FALSE, warning=FALSE}
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(ggforce)
+library(bipartite)
+library(igraph)
+library(assortnet)
+library(metafor)
+library(ggthemes)
+```
+
+### Data loading
+
+```{r}
+poli_data <- read_csv("~/Documents/GitHub/LargeHerbivoreOverabundance/data/pollination_clean_data.csv")
+head(poli_data)
+```
+
+```{r}
+# Creating unique identifier
+poli_data$sampling_unit_new <- paste(poli_data$treatment, poli_data$sampling_unit, poli_data$year, sep = "_")
+n_distinct(poli_data$sampling_unit_new)
+
+# Remove no interaction data
+poli_data<- poli_data %>%
+  filter(observation > 0)
+
+poli_data <- poli_data %>%
+  mutate(
+    plant_species = sapply(strsplit(level, "_"), function(x) paste(x[1:2], collapse = "_")),  
+    poli_species = sapply(strsplit(level, "_"), function(x) paste(x[3:length(x)], collapse = "_"))  
+  )
+
+#str(poli_data)
+```
+
+There are 18 networks (3 in each enclosure), before and after (3x3 = 9; 9x2 = 18)
+
+## Lets calculate network metrcis
+
+*Interaction richness* → Unique interaction richness in each network.
+
+*Pollinator richness* → Unique pollinator species in each network.
+
+*Flowering species richess* → Unique plant species in each network.
+
+```{r}
+# Creating dataset for network metrics 
+net_description <- poli_data %>%
+  group_by(sampling_unit_new) %>%
+  summarise(
+    riqueza_interacciones = n_distinct(level),  # Interaction Richness
+    especies_polinizadores = n_distinct(poli_species),  # Pollinator richness
+    especies_plantas = n_distinct(plant_species),  # Plant richness
+    .groups = "drop"  
+  )
+
+
+net_description <- net_description %>%
+  left_join(poli_data %>%
+              select(sampling_unit_new, treatment, sampling_unit, year) %>%
+              distinct(), by = "sampling_unit_new")
+
+# Let see
+print(net_description)
+
+
+```
+
+Exploring annual variation among enclosures.
+
+```{r}
+ggplot(net_description, aes(x = treatment, y = riqueza_interacciones, fill = as.factor(year))) +
+  geom_boxplot() +
+  labs(title = "Riqueza de Interacciones por Tratamiento y Año", x = "Tratamiento", y = "Riqueza de Interacciones", fill = "Año") +
+  theme_minimal()
+
+ggplot(net_description, aes(x = treatment, y = especies_polinizadores, fill = as.factor(year))) +
+  geom_boxplot() +
+  labs(title = "Número de Especies de Polinizadores por Tratamiento y Año", x = "Tratamiento", y = "Especies de Polinizadores", fill = "Año") +
+  theme_minimal()
+
+ggplot(net_description, aes(x = treatment, y = especies_plantas, fill = as.factor(year))) +
+  geom_boxplot() +
+  labs(title = "Número de Especies de Plantas por Tratamiento y Año", x = "Tratamiento", y = "Especies de Plantas", fill = "Año") +
+  theme_minimal()
+
+```
+
+Wowww! Interesting variation due to herbivore one-year overabundance.
+
+Lets calculate network level metrics with bipartite.
+
+First, I need to prepare the netowrks..
+
+```{r}
+# Spliting bysampling_unit_new
+separated_data <- split(poli_data, poli_data$sampling_unit_new)
+
+# Ona matrix for each network
+create_interaction_matrix <- function(data) {
+  plant_species <- unique(data$plant_species)
+  pollinator_species <- unique(data$poli_species)
+  
+  # 0s matrix creation
+  interaction_matrix <- matrix(0, nrow = length(plant_species), ncol = length(pollinator_species))
+  
+  # Column an file names
+  rownames(interaction_matrix) <- plant_species
+  colnames(interaction_matrix) <- pollinator_species
+  
+  # Fill with "observation" data
+  for(i in 1:nrow(data)) {
+    plant <- data$plant_species[i]
+    pollinator <- data$poli_species[i]
+    observation <- data$observation[i]
+    if(observation > 0) {
+      interaction_matrix[plant, pollinator] <- observation
+    }
+  }
+  
+  # Output set 
+  return(interaction_matrix)
+}
+
+# Creating matrices for exach web
+interaction_matrices <- lapply(separated_data, create_interaction_matrix)
+
+# Dataframe creation in wide format
+interaction_dfs <- lapply(interaction_matrices, function(mat) {
+  df <- as.data.frame(mat)
+  return(df)
+})
+
+# Lets see the first web
+head(interaction_dfs[[1]])
+
+```
+
+### Network level metrics estimation:
+
+**weighted connectance**
+
+**weighted NODF**
+
+**interaction evenness**
+
+*H2 (Not included in final analysis)*
+
+```{r}
+# Empty dayaset
+metrics_results <- data.frame(
+  sampling_unit_new = character(),
+  connectance = numeric(),
+  weighted_nestedness = numeric(),
+  assortativity = numeric(),
+  modularity = numeric(),
+  eigenvector_centrality = numeric(),
+  interaction_evenness = numeric(),
+  specificity_H2 = numeric(), 
+  stringsAsFactors = FALSE
+)
+
+# Creating function for network metrics estimation using `networklevel´from bipartite.
+calculate_network_metrics <- function(mat) {
+  metrics <- networklevel(mat, index = c("weighted connectance", "weighted NODF", "interaction evenness", "H2"))
+  return(metrics)
+}
+
+# ¿Redundant empty dataset creation?
+metrics_results <- data.frame(
+  sampling_unit_new = character(length(interaction_matrices)),
+  connectance = numeric(length(interaction_matrices)),
+  weighted_NODF = numeric(length(interaction_matrices)),
+  interaction_evenness = numeric(length(interaction_matrices)),
+  specificity_H2 = numeric(length(interaction_matrices)),
+  stringsAsFactors = FALSE
+)
+
+# Appling metrics estimation function
+for (i in 1:length(interaction_matrices)) {
+  mat <- interaction_matrices[[i]]
+  metrics <- calculate_network_metrics(mat)
+  metrics_results$connectance[i] <- metrics[1]
+  metrics_results$weighted_NODF[i] <- metrics[2]
+  metrics_results$interaction_evenness[i] <- metrics[3]
+  metrics_results$specificity_H2[i] <- metrics[4]
+  metrics_results$sampling_unit_new[i] <- names(interaction_matrices)[i]
+}
+
+# Lets see the output
+head(metrics_results)
+```
+
+### Modularity 
+
+*(not in \`network level´)*
+
+```{r}
+# Defining function
+calculate_modularity <- function(mat) {
+  mod_result <- computeModules(mat, method = "Beckett")
+  modularity_value <- mod_result@likelihood
+  return(modularity_value)
+}
+
+# Update metrics dataframe
+for (i in 1:length(interaction_matrices)) {
+  mat <- interaction_matrices[[i]]
+  modularity_value <- calculate_modularity(mat)
+  metrics_results$modularity[i] <- modularity_value
+}
+```
+
+```{r}
+# Merge by 'sampling_unit_new'
+combined_data <- merge(metrics_results, net_description, by = "sampling_unit_new")
+```
+
+## Data save
+```{r}
+write.csv(combined_data, file = "/Users/jorgeislaescudero/Documents/GitHub/LargeHerbivoreOverabundance/data/data_for_EffectSizes/pollination_networks.csv", row.names = FALSE)
+```
+
+## Space cleaning
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```

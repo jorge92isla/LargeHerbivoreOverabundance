@@ -1,0 +1,110 @@
+---
+title: "Code_1.7_invertebrates"
+author: "Jorge Isla"
+date: "2025-03-18"
+output: html_document
+---
+🦗🦗🐞🦗🦗🐞🦗🦗🐞🦗🦗🐞🦗🦗🐞🦗🦗🐞🦗🦗🐞🦗🦗🐞🦗🦗🐞🦗🦗🐞🦗🦗🐞🦗🦗🐞🦗🦗
+
+This code clean the epigeic invertebrates dataset and calculates ant richness, diversity, and abundance for each sampling unit (pitfall).
+
+```{r}
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(ggforce)
+```
+
+
+```{r}
+inver_data <- read_csv("~/Documents/GitHub/LargeHerbivoreOverabundance/data/invertebratestaxonomy_clean_data.csv")
+head(inver_data)
+
+#Fixing some problems with tranck and treatment names
+inver_data <- inver_data %>%
+  mutate(
+    plot = case_when(
+      is.na(plot) & site == "toledo" & habitat == "scrub" & treatment == "control" ~ "T97",
+      is.na(plot) & site == "toledo" & habitat == "scrub" & treatment == "high" ~ "T98",
+      is.na(plot) & site == "toledo" & habitat == "scrub" & treatment == "hyper" ~ "T99",
+      TRUE ~ plot 
+    )
+  )
+
+inver_data <- inver_data %>%
+  mutate(
+    sampling_unit = str_replace(sampling_unit, "pitfall_", "P")
+  )
+
+inver_data <- inver_data %>%
+  mutate(treatment = case_when(
+    site == "valencia" & treatment == "control_high" ~ "controlhigh",
+    site == "valencia" & treatment == "control_hyper" ~ "controlhyper",
+    TRUE ~ treatment
+  ))
+
+```
+
+```{r}
+sort(unique(inver_data$level))
+
+#Fixing typo mistakes!
+
+inver_data <- inver_data %>%
+  mutate(
+    level = recode(level,
+      "litobiomorpha" = "lithobiomorpha",  
+      "plyxenida" = "polyxenida"           
+    )
+  )
+
+n_distinct(inver_data$level) # For Table 1
+sort(unique(inver_data$level))
+
+```
+
+#Preparing matrix
+```{r}
+
+inver_data <- inver_data %>%
+  mutate(sampling_unit_new = paste(site, treatment, plot, sampling_unit, sep = "_"))
+
+
+abundance_matrix <- inver_data %>%
+  group_by(sampling_unit_new, year, level) %>%
+  summarise(total_abundance = sum(observation, na.rm = TRUE)) %>%
+  ungroup()  
+
+
+abundance_matrix_wide <- abundance_matrix %>%
+  pivot_wider(names_from = level, values_from = total_abundance, values_fill = list(total_abundance = 0))
+
+head(abundance_matrix_wide)
+```
+Computing diversity, abundance and richness
+```{r}
+species_matrix <- select(abundance_matrix_wide, -year, -sampling_unit_new)
+
+abundance_matrix_wide <- abundance_matrix_wide %>%
+  mutate(
+    Riqueza = rowSums(species_matrix > 0), 
+    Shannon = exp(vegan::diversity(species_matrix, index = "shannon")),
+    Simpson = vegan::diversity(species_matrix, index = "invsimpson"),
+    Abundancia = rowSums(species_matrix)
+  )
+
+# Re-sorting
+abundance_matrix_wide <- abundance_matrix_wide %>%
+  select(1:2, (ncol(abundance_matrix_wide) - 3):ncol(abundance_matrix_wide))
+
+#Check!
+head(abundance_matrix_wide)
+```
+
+## Clean data save
+```{r}
+write.csv(abundance_matrix_wide, file = "/Users/jorgeislaescudero/Documents/GitHub/LargeHerbivoreOverabundance/data/data_for_EffectSizes/invertebrates.csv", row.names = FALSE)
+```
+
+

@@ -1,0 +1,349 @@
+---
+title: "Code_2.4_woody_browsing_delta"
+author: "Jorge"
+date: "2025-03-26"
+output: html_document
+---
+
+🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌🌳🦌
+
+Voy a hacer los cálculos de variaciones en el grado de ramoneo entre 
+
+El *delta* está encajado por sampling_unit, en este caso, pitfalls.
+
+```{r}
+# Cargar las librerías necesarias
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(ggforce)
+```
+
+
+```{r}
+# Cargar el archivo de datos
+woody_browsing <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/woody_browsing_clean_data.csv")
+
+# Filtrar para eliminar las filas donde 'site' sea igual a "valencia". En Valencia solamente se hicieron transectos en 2022, no en 2021. Por lo que no podemos aprovechar ahí la potencia del diseño BACI.
+woody_browsing2 <- woody_browsing %>%
+  filter(site != "valencia")
+woody_browsing <- woody_browsing %>%
+  filter(site != "valencia")
+
+# Filtrar para eliminar HERBS, ya que la intensidad de ramoneo sobre las especies la sacaremos de los cuadras de herbáceas mejor!
+woody_browsing <- woody_browsing %>%
+  filter(level != "Herbs")
+
+# Revisar la estructura de los datos cargados
+head(woody_browsing)
+```
+```{r}
+str(woody_browsing)
+```
+#Saco aquí un brazo, por eso he creado woody_browsing2, para el análisis BACI, voy a crear una especie de Community Weighted Mean
+```{r}
+#Calculo el  % relativo que supone cada individuo interseccionado.
+woody_browsing_relativo <- woody_browsing2 %>%
+  # Agrupar por contexto único (transecto × año × hábitat × tratamiento × sitio)
+  group_by(site, habitat, treatment, sampling_unit, year) %>%
+  # Calcular suma total de Intervalo por cada grupo
+  mutate(total_transecto = sum(Intervalo, na.rm = TRUE)) %>%
+  # Calcular abundancia relativa como porcentaje
+  mutate(abundancia_relativa = (Intervalo / total_transecto) * 100) %>%
+  # Eliminar la columna temporal (opcional)
+  select(-total_transecto) %>%
+  # Reordenar las filas
+  ungroup()
+
+# Ver resultado
+head(woody_browsing_relativo)
+
+#Me traigo los datos que le quiero imputar a la especie HERBS, estos datos es como si hubieramos hecho el CWM de ese troo de herbs del transecto.
+
+herbs_CWM <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/functional/herbs_CWM_summary.csv")
+
+# Meto los datos
+library(dplyr)
+
+herbs_CWM_reduced <- herbs_CWM %>%
+  select(site, year, plot, media_abundancia_x_ramoneo)
+
+woody_browsing_relativo_imputado <- woody_browsing_relativo %>%
+  filter(level == "Herbs", is.na(observation)) %>%
+  left_join(herbs_CWM_reduced, 
+            by = c("site" = "site",
+                   "year" = "year",
+                   "sampling_unit" = "plot")) %>%
+  mutate(
+    observation = ifelse(is.na(observation), 
+                         media_abundancia_x_ramoneo, 
+                         observation)
+  ) %>%
+  select(names(woody_browsing_relativo))
+
+# Paso 2: Combinar con las filas que no necesitaban imputación
+woody_browsing_relativo_final <- woody_browsing_relativo %>%
+  filter(!(level == "Herbs" & is.na(observation))) %>%
+  bind_rows(woody_browsing_relativo_imputado)
+
+# Ver resultado YA HABIENDO IMPUTADO HERBS!
+head(woody_browsing_relativo_final)
+
+# Multuplica el valor de abundancia relativa por su valor de ramoneo 
+woody_browsing_relativo_final <- woody_browsing_relativo_final %>%
+  mutate(
+    # Paso 1: Dividir abundancia_relativa entre 100
+    abundancia_normalizada = abundancia_relativa / 100,
+    
+    # Paso 2: Multiplicar por observation
+    nuevo_indice = abundancia_normalizada * observation,
+    
+    # Opcional: Redondear a 2 decimales
+    nuevo_indice = round(nuevo_indice, 2)
+  )
+
+CWM_browsing <- woody_browsing_relativo_final %>%
+  group_by(site, treatment, year, sampling_unit) %>%
+  summarise(
+    CWM_browsing = sum(nuevo_indice, na.rm = TRUE),
+    n_observaciones = n(),  # Número de registros por grupo
+    .groups = "drop"  # Elimina la agrupación
+  ) %>%
+  arrange(site, year, treatment)  # Ordenar los resultados
+
+# Ver el dataset resultante
+print(CWM_browsing, n = Inf)
+
+# Guardo esto para BACI
+write.csv(CWM_browsing, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/cwm_browsig.csv", row.names = FALSE)
+```
+
+Limpio el espacio
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```
+
+Lo dejo aquí por hoy pues no tengo claro de estar haciendolo bien, realmente creo que va a ser mejor sacarle un valor medio de grado de ramoneo a cada especie en cada transecto, y ponderar eso por su abundancia relativa, de esta manera los valores que me quedan tienen sentido sobre la escala de Ramoneo.
+
+```{r}
+# Definir los colores para los tratamientos
+colores_tratamientos <- c(
+  "control" = "#6A9373",  # Color para 'control'
+  "high" = "#E6B800",     # Color para 'high'
+  "hyper" = "#9B5F96"     # Color para 'hyper'
+)
+
+# Crear el gráfico de densidad para el nivel de herbivoría por tratamiento
+ggplot(woody_browsing, aes(x = observation, fill = treatment)) +
+  geom_density(alpha = 0.6) +  # 'alpha' controla la transparencia de las áreas de densidad
+  scale_fill_manual(values = colores_tratamientos) +  # Aplicamos los colores personalizados
+  facet_wrap(~ year, scales = "free") +  # Facetas por año, con escalas libres para cada faceta
+  labs(x = "Nivel de Herbivoría (0-5)", y = "Densidad", 
+       title = "Distribución de Nivel de Herbivoría por Tratamiento") +
+  theme_minimal() +
+  theme(legend.title = element_blank())  # Opcional: quitar el título de la leyenda
+```
+
+```{r}
+# Crear la nueva columna 'sampling_unit_new'
+woody_browsing <- woody_browsing %>%
+  mutate(sampling_unit_new = paste(treatment, sampling_unit, level, sep = "/"))
+
+# Verificar los primeros registros para asegurarse de que la nueva columna se ha creado correctamente
+head(woody_browsing)
+
+#Quieero saber en cada trans
+woody_browsing <- woody_browsing %>%
+  group_by( treatment, year, level) %>%
+  mutate(n_observations = n()) %>%
+  ungroup()
+
+woody_browsing <- woody_browsing %>%
+  mutate(sampling_unit_new = paste(sampling_unit_new, year, sep = "/"))
+
+# Creo mean browing
+woody_browsing <- woody_browsing %>%
+  group_by(sampling_unit_new) %>%
+  mutate(mean_browsing = mean(observation, na.rm = TRUE)) %>% 
+  ungroup()
+
+# Verificar los primeros registros
+head(woody_browsing)
+hist(woody_browsing$n_observations)
+```
+
+```{r}
+hist(woody_browsing$mean_browsing)
+# Filtrar los datos para cada año y hacer los gráficos de densidad
+for (yr in c(2021, 2022)) {
+  ggplot(woody_browsing %>% filter(year == yr), aes(x = mean_browsing, fill = treatment)) +
+    geom_density(alpha = 0.6) +
+    scale_fill_manual(values = colores_tratamientos) +
+    labs(
+      x = "Media de Nivel de Herbivoría",
+      y = "Densidad",
+      title = paste("Distribución de Media de Herbivoría por Tratamiento - Año", yr)
+    ) +
+    theme_minimal() +
+    theme(legend.title = element_blank()) -> plot
+  
+  print(plot)  # Imprimir el gráfico
+}
+```
+```{r}
+# Crear el dataset con browsing_mean y n_observations, y eliminar las filas con n_observations < 5
+
+browsing_summary <- woody_browsing %>%
+  group_by(level, year, treatment) %>%
+  summarise(
+    browsing_mean = mean(observation, na.rm = TRUE),
+    n_observations = first(n_observations)  # Mantener n_observations
+  )
+
+
+browsing_summary_2 <- woody_browsing %>%
+  group_by(level, year, treatment) %>%
+  summarise(
+    browsing_mean = mean(observation, na.rm = TRUE),
+    n_observations = first(n_observations)  # Mantener n_observations
+  ) %>%
+  filter(n_observations >= 5) %>%  # Eliminar filas con n_observations < 5
+  ungroup()
+
+# Ver los primeros registros del nuevo dataset
+head(browsing_summary)
+
+```
+```{r}
+# Filtrar el dataset para el año 2021 y 2022, y eliminar especies con valor 0 en 2022
+browsing_summary_filtered <- browsing_summary %>%
+  filter((year == 2021) | (year == 2022)) %>%
+  group_by(level, treatment, year)  # Eliminar especies con browsing_mean == 0 en 2022
+
+library(viridis)
+
+# Crear el gráfico para cada tratamiento con paleta viridis
+ggplot(browsing_summary_filtered, aes(x = factor(year), y = browsing_mean, color = level, group = level)) +
+  geom_point(size = 3) +  # Puntos para cada especie
+  geom_line(aes(linetype = "dashed"), size = 0.5) +  # Línea discontinua
+  facet_wrap(~treatment, scales = "free_y") +  # Un gráfico para cada tratamiento
+  scale_color_viridis(discrete = TRUE) +  # Usar la paleta viridis
+  labs(
+    x = "Año",
+    y = "Media de Herbivoría",
+    title = "Media de Herbivoría por Especie y Tratamiento",
+    color = "Especie"  # Título de la leyenda
+  ) +
+  theme_minimal() +
+  theme(legend.position = "right")  # Mostrar la leyenda en la parte derecha
+```
+
+```{r}
+# Paso 1: Filtrar y agrupar los datos, eliminando 0 y NA en browsing_mean
+delta_browsing_df <- browsing_summary %>%
+  filter(year %in% c(2021, 2022)) %>%  # Filtrar por años 2021 y 2022
+  group_by(level, treatment, year) %>%
+  summarise(browsing_mean = mean(browsing_mean, na.rm = TRUE)) %>%
+  ungroup()
+
+# Paso 2: Pivotar los datos para tener browsing_mean para 2021 y 2022 por especie y tratamiento
+delta_browsing_df <- delta_browsing_df %>%
+  pivot_wider(names_from = year, values_from = browsing_mean, names_prefix = "browsing_mean_") %>%
+  # Paso 3: Crear la columna delta_browsing (2022 - 2021)
+  mutate(delta_browsing = browsing_mean_2022 - browsing_mean_2021) %>%
+  # Paso 4: Eliminar especies con valores NA o browsing_mean == 0 en 2022
+  filter(!is.na(browsing_mean_2022) & browsing_mean_2022 != 0) %>%
+  select(level, treatment, delta_browsing)  # Seleccionamos solo las columnas necesarias
+
+# Ver el resultado
+head(delta_browsing_df)
+
+# Crear el boxplot con jitter y media para cada tratamiento
+ggplot(delta_browsing_df, aes(x = treatment, y = delta_browsing, color = treatment)) +
+  geom_boxplot(outlier.shape = NA, fill = "white", color = "black", alpha = 0.5) +  # Boxplot
+  geom_jitter(width = 0.2, size = 2) +  # Jitter para los puntos
+  stat_summary(fun = "mean", geom = "point", size = 4, color = "black", shape = 18) +  # Media
+  scale_color_manual(values = colores_tratamientos) +  # Colores de los tratamientos
+  geom_point(data = data.frame(treatment = "control", delta_browsing = 0), 
+             aes(x = treatment, y = delta_browsing), 
+             color = "#6A9373", size = 4, shape = 19) +  # Punto en nivel 0 para el control
+  labs(
+    x = "Tratamiento",
+    y = "Delta de Herbivoría",
+    title = "Delta de Herbivoría por Tratamiento"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")  # Eliminar la leyenda, ya que cada color ya es el tratamiento
+
+ggplot(diferencias_actualizado %>% filter(métrica == "Bray-Curtis"), aes(x = treatment, y = diferencia_2022_2021, fill = treatment)) +
+  geom_boxplot() +  # Boxplot con colores personalizados
+   geom_jitter(width = 0.2, size = 2, alpha = 0.7) +
+  stat_summary(fun = mean, geom = "point", shape = 21, size = 4, color = "black", fill = "black") + 
+  scale_fill_manual(values = colores_tratamientos) +  
+  facet_grid(site ~ ., scales = "free_y") +  # Organiza por sitio
+  labs(
+    title = "Contrastes en Bray-Curtis entre tratamientos por sitio",
+    x = "Tratamiento",
+    y = "Diferencia en Bray-Curtis (2022 - 2021)",
+    fill = "Tratamiento"
+  ) +
+  theme_minimal() +  # Tema minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotación del texto en el eje X para mejor visibilidad
+    strip.background = element_rect(fill = "lightblue", color = "black"),  # Fondo de las etiquetas de los gráficos
+    strip.text = element_text(face = "bold", color = "black"),  # Estilo de las etiquetas
+    panel.border = element_rect(color = "black", fill = NA, size = 1)  # Encadre de los paneles
+```
+
+```{r}
+delta_browsing_df
+```
+
+```{r}
+# Modificar el dataset según las instrucciones
+delta_browsing_df_modified <- delta_browsing_df %>%
+  # Agregar la columna 'site' con valor 'toledo'
+  mutate(
+    site = "toledo",  
+    # Agregar la columna 'habitat' vacía
+    habitat = NA,  
+    # Renombrar la columna 'level' a 'sampling_unit'
+    sampling_unit = level,  
+    # Agregar la columna 'indice' con valor constante 'woody_browsing_delta'
+    indice = "woody_browsing_delta",
+    # Renombrar 'delta_browsing' a 'valor'
+    valor = delta_browsing
+  ) %>%
+  # Seleccionar y reordenar las columnas
+  select(site, habitat, treatment, sampling_unit, indice, valor)  # Reordenando y seleccionando las columnas
+
+# Verifica los primeros registros para comprobar la transformación
+head(delta_browsing_df_modified)
+```
+
+
+
+## Clean data save
+```{r}
+write.csv(delta_browsing_df_modified, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/functional/woody_browsing_delta.csv", row.names = FALSE)
+```
+
+Limpio el espacio
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```

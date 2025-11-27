@@ -1,0 +1,323 @@
+---
+title: "Code_1.8_data_carpintry_dualex"
+author: "Jorge"
+date: "2025-03-04"
+output: html_document
+---
+
+🌱🗜️
+
+Este es el dataset de carpintería de datos para preparar los datos de **dualex** que me envía Menchu.
+
+-   *Dimensión temporal:* Both 2021 & 2022
+-   *Dimensión espacial:* Both valencia & toledo
+-   *jorge_traductor* Menchu me pasó la chuleta cuando fuí a Madrid.
+
+Al loro con DUALEX, pues genera diferentes medidas de las que me voy a quedar con el nivel de clorofila y de antocianinas para hojas viejas y nuevas de 
+
+Toledo: Cistus ladanifer y Quercus ilex
+Vlencia: Cistos albidus y Quercus ilex
+
+Chlorophyll content was used as a proxy of the good photosynthetic functioning while anthocyanin content was used to measure plant response to herbivory.
+
+```{r cargando paquetes, include=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(readxl)
+```
+
+Cargando datos
+```{r}
+#Muela
+dualexMC_raw_data <- as.data.frame(read_excel(file.path("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_raw/dualex/mc_Dualex.xlsx")))
+
+dualexMC_raw_data <- dualexMC_raw_data %>%
+  select(-`...1`) %>%
+ rename(Cercado.x = CERCADO)
+
+dualexMC_raw_data <- dualexMC_raw_data %>%
+  mutate(across(c(OLD_Chl, NEW_Chl, OLD_Anth, NEW_Anth), 
+                as.numeric))
+
+str(dualexMC_raw_data)
+
+#Quintos
+dualexQM_raw_data <- as.data.frame(read.table(file.path("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_raw/dualex/QM_Dualex.txt")))
+str(dualexQM_raw_data)
+```
+
+Voy a ir quitando cosas de este dataset que no nos interesan.
+```{r}
+dualexQM_filtered <- dualexQM_raw_data %>%
+  # Filtro por año
+  filter(Year %in% c(2021, 2022)) %>%
+  # Modifico variables y renombro
+  mutate(
+    treatment = case_when(
+      Cercado.x == "A" ~ "hyper",
+      Cercado.x == "B" ~ "high",
+      Cercado.x == "C" ~ "control",
+      TRUE ~ Cercado.x
+    ),
+    Specie = case_when(
+      Specie == "CL" ~ "Cistus_ladanifer",
+      Specie == "QI" ~ "Quercus_ilex",
+      TRUE ~ Specie
+    ),
+    site = "toledo"
+  ) %>%
+  # Elimino columnas innecesarias
+  select(-Cercado.x, -matches("_sd|_NBI|_Flav"))
+
+#Transformo al formato largo
+dualexQM_long <- dualexQM_filtered %>%
+  # 1. Convertir de formato ancho a largo
+  pivot_longer(
+    cols = c(OLD_Chl, NEW_Chl, OLD_Anth, NEW_Anth),  # Columnas a pivotar
+    names_to = c("leaf_age", ".value"),  # Separar en "leaf_age" y la métrica (Chl o Anth)
+    names_sep = "_"  # El separador en los nombres originales
+  ) %>%
+  
+  # 2. Convertir el texto de leaf_age a minúsculas para mayor claridad
+  mutate(leaf_age = tolower(leaf_age)) %>%
+  
+  # 3. Agregar nuevas columnas con valores predeterminados
+  mutate(
+    habitat = NA,
+    plot = NA,
+    sampling_unit = NA,
+    date = NA,
+    units = NA,
+    comments = NA,
+    variable_type = "plant_sp_dualex_response"
+  ) %>%
+  
+  # 4. Renombrar la columna "ID" a "author_code"
+  rename(author_code = ID) %>%
+  
+  # 5. Eliminar la columna "Full_ID" porque ya no es necesaria
+  select(-Full_ID)
+
+str(dualexQM_long)
+```
+Voy a ir quitando cosas de este dataset que no nos interesan.
+```{r}
+dualexMC_filtered <- dualexMC_raw_data %>%
+  # Filtro por año
+  filter(Year %in% c(2021, 2022)) %>%
+  # Elimino las filas con ID = "384CA", "167CA"
+  filter(ID != "385CA") %>%
+  filter(ID != "167CA") %>%
+  # Modifico variables y renombro
+  mutate(
+    treatment = case_when(
+      Cercado.x == "A"  ~ "high",
+      Cercado.x == "AC" ~ "control_high",
+      Cercado.x == "B"  ~ "hyper",
+      Cercado.x == "BC" ~ "control_hyper",
+      TRUE ~ Cercado.x
+    ),
+    Specie = case_when(
+      Specie == "CA" ~ "Cistus_albidus",
+      Specie == "QI" ~ "Quercus_ilex",
+      TRUE ~ Specie
+    ),
+    site = "valencia"
+  ) %>%
+  # Elimino columnas innecesarias
+  select(-Cercado.x, -matches("_sd|_NBI|_Flav"))
+
+
+
+#Transformo al formato largo
+dualexMC_long <- dualexMC_filtered %>%
+  # 1. Convertir de formato ancho a largo
+  pivot_longer(
+    cols = c(OLD_Chl, NEW_Chl, OLD_Anth, NEW_Anth),  # Columnas a pivotar
+    names_to = c("leaf_age", ".value"),  # Separar en "leaf_age" y la métrica (Chl o Anth)
+    names_sep = "_"  # El separador en los nombres originales
+  ) %>%
+  
+  # 2. Convertir el texto de leaf_age a minúsculas para mayor claridad
+  mutate(leaf_age = tolower(leaf_age)) %>%
+  
+  # 3. Agregar nuevas columnas con valores predeterminados
+  mutate(
+    habitat = NA,
+    plot = NA,
+    sampling_unit = NA,
+    date = NA,
+    units = NA,
+    comments = NA,
+    variable_type = "plant_sp_dualex_response"
+  ) %>%
+  
+  # 4. Renombrar la columna "ID" a "author_code"
+  rename(author_code = ID) %>%
+  
+  # 5. Eliminar la columna "Full_ID" porque ya no es necesaria
+  select(-Full_ID)
+
+str(dualexMC_long)
+```
+
+```{r}
+dualexQM_long <- dualexQM_long %>%
+  # 1. Convertir de formato ancho a largo para "Chl" y "Anth"
+  pivot_longer(
+    cols = c(Chl, Anth), 
+    names_to = "variable_name", 
+    values_to = "valor"
+  ) %>%
+  
+  # 2. Renombrar valores de "variable_name" para mayor claridad
+  mutate(variable_name = case_when(
+    variable_name == "Chl" ~ "clorofila",
+    variable_name == "Anth" ~ "antocianina"
+  )) %>%
+  
+  # 3. Renombrar y modificar valores de "leaf_age"
+  rename(level = leaf_age) %>%
+  mutate(level = case_when(
+    level == "old" ~ "old_leave",
+    level == "new" ~ "new_leave"
+  )) %>%
+  
+  # 4. Renombrar "Year" a "year"
+  rename(year = Year) %>%
+  
+  # 5. Copiar valores de "Specie" a "variable_type" y eliminar "Specie"
+  mutate(variable_type = Specie) %>%
+  select(-Specie) %>%
+  
+  # 6. Reordenar las columnas para mayor claridad
+  select(site, habitat, treatment, plot, sampling_unit, year, date, 
+         variable_type, variable_name, level, valor, units, comments, author_code)
+```
+
+```{r}
+dualexMC_long <- dualexMC_long %>%
+  # 1. Convertir de formato ancho a largo para "Chl" y "Anth"
+  pivot_longer(
+    cols = c(Chl, Anth), 
+    names_to = "variable_name", 
+    values_to = "valor"
+  ) %>%
+  
+  # 2. Renombrar valores de "variable_name" para mayor claridad
+  mutate(variable_name = case_when(
+    variable_name == "Chl" ~ "clorofila",
+    variable_name == "Anth" ~ "antocianina"
+  )) %>%
+  
+  # 3. Renombrar y modificar valores de "leaf_age"
+  rename(level = leaf_age) %>%
+  mutate(level = case_when(
+    level == "old" ~ "old_leave",
+    level == "new" ~ "new_leave"
+  )) %>%
+  
+  # 4. Renombrar "Year" a "year"
+  rename(year = Year) %>%
+  
+  # 5. Copiar valores de "Specie" a "variable_type" y eliminar "Specie"
+  mutate(variable_type = Specie) %>%
+  select(-Specie) %>%
+  
+  # 6. Reordenar las columnas para mayor claridad
+  select(site, habitat, treatment, plot, sampling_unit, year, date, 
+         variable_type, variable_name, level, valor, units, comments, author_code)
+```
+
+```{r}
+# Gráfico para Antocianinas
+ggplot(dualexQM_long %>% filter(variable_name == "antocianina"), aes(x = year, y = valor, color = treatment, group = author_code)) +
+  geom_point(size = 0.5, alpha = 0.1) +  # Puntos individuales
+  geom_line(alpha = 0.4) +  # Línea conectando los valores de la misma planta
+  geom_smooth(aes(group = treatment), method = "lm", se = TRUE, linewidth = 2) +  # Línea de tendencia por tratamiento
+  facet_wrap(~ level + variable_type, scales = "free_y") +  # Facetas según edad de la hoja y especie
+  theme_minimal() +
+  labs(title = "Evolución de Antocianinas entre 2021 y 2022 en Toledo",
+       x = "Año", 
+       y = "Antocianinas (Anth)", 
+       color = "Tratamiento") +
+  theme(legend.position = "top")
+```
+
+Resulta que las antocianinas de las hojas nuevas de Quercus ilex responden al tratamientio, aumentando su concentración tras un año de exposición.
+
+De QM creo que me voy a quedar con las hojas nuevas.
+
+```{r}
+# Gráfico para Clorofila
+ggplot(dualexQM_long %>% filter(variable_name == "clorofila"), aes(x = year, y = valor, color = treatment, group = author_code)) +
+  geom_point(size = 0.5, alpha = 0.1) +  # Puntos individuales
+  geom_line(alpha = 0.4) +  # Línea conectando los valores de la misma planta
+  geom_smooth(aes(group = treatment), method = "lm", se = TRUE, linewidth = 2) +  # Línea de tendencia por tratamiento
+  facet_wrap(~ level + variable_type, scales = "free_y") +  # Facetas según edad de la hoja y especie
+  theme_minimal() +
+  labs(title = "Evolución de Clorofila entre 2021 y 2022 en Toledo",
+       x = "Año", 
+       y = "Clorofila (Chl)", 
+       color = "Tratamiento") +
+  theme(legend.position = "top")
+```
+Aquí, puede apreciarse que las hojas nuevas de quercus ilex muestran una mayor capacidad fotosintética el primer año que el segundo.
+
+```{r}
+# Gráfico para Antocianinas
+ggplot(dualexMC_long %>% filter(variable_name == "antocianina"), aes(x = year, y = valor, color = treatment, group = author_code)) +
+  geom_point(size = 0.5, alpha = 0.1) +  # Puntos individuales
+  geom_line(alpha = 0.4) +  # Línea conectando los valores de la misma planta
+  geom_smooth(aes(group = treatment), method = "lm", se = TRUE, linewidth = 2) +  # Línea de tendencia por tratamiento
+  facet_wrap(~ level + variable_type, scales = "free_y") +  # Facetas según edad de la hoja y especie
+  theme_minimal() +
+  labs(title = "Evolución de Antocianinas entre 2021 y 2022 en Valencia",
+       x = "Año", 
+       y = "Antocianinas (Anth)", 
+       color = "Tratamiento") +
+  theme(legend.position = "top")
+```
+
+```{r}
+# Gráfico para Clorofila
+ggplot(dualexMC_long %>% filter(variable_name == "clorofila"), aes(x = year, y = valor, color = treatment, group = author_code)) +
+  geom_point(size = 0.5, alpha = 0.1) +  # Puntos individuales
+  geom_line(alpha = 0.4) +  # Línea conectando los valores de la misma planta
+  geom_smooth(aes(group = treatment), method = "lm", se = TRUE, linewidth = 2) +  # Línea de tendencia por tratamiento
+  facet_wrap(~ level + variable_type, scales = "free_y") +  # Facetas según edad de la hoja y especie
+  theme_minimal() +
+  labs(title = "Evolución de Clorofila entre 2021 y 2022 en Valencia",
+       x = "Año", 
+       y = "clorofila (Clf)", 
+       color = "Tratamiento") +
+  theme(legend.position = "top")
+```
+
+En este caso parece ser Cistus_albidus el que responde con sus hojas nuevas produciendo nieveles bajos de clorofila
+
+Solamente tengo cinco plantas de Cistus_albidus que han podido ser medidas tanto en 2021 conmo en 2022 en el tratamiento hyper.
+
+# Merging data from Toledo y Valencia
+```{r}
+dualex_data <- bind_rows(dualexQM_long, dualexMC_long)
+```
+
+
+# Save Dualex 🗜️🌱
+```{r}
+write.csv(dualex_data, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/dualex_data.csv", row.names = FALSE)
+```
+
+Limpio el espacio
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```

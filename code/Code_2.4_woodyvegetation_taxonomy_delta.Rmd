@@ -1,0 +1,508 @@
+---
+title: "Code_2.4_woodyvegetation_taxonomy_delta"
+author: "Jorge"
+date: "2025-03-11"
+output: html_document
+---
+
+🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳🌳
+
+Voy a hacer los cálculos de diversidad y bray-curtis para las leñosas
+
+El *delta* está encajado por sampling_unit, en este caso, pitfalls.
+
+```{r}
+#install.packages("metafor")
+# Cargar las librerías necesarias
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(ggforce)
+library(metafor)
+```
+
+
+```{r}
+# Cargar el archivo de datos
+woody_data <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/woody_cover_clean_data.csv")
+# Revisar la estructura de los datos cargados
+glimpse(woody_data)
+
+# Filtrar para eliminar las filas donde 'site' sea igual a "valencia". En Valencia solamente se hicieron transectos en 2022, no en 2021. Por lo que no podemos aprovechar ahí la potencia del diseño BACI.
+# woody_data <- woody_data %>%
+#  filter(site != "valencia")
+```
+```{r}
+sort(unique(woody_data$level))
+n_distinct(woody_data$level) # PARA RESULTADOS DEL PAPER
+```
+
+
+```{r}
+#Creo un nuevo sampling_unit, Para que las estimas de delta sean al comparar conigo mismo. 
+woody_data <- woody_data %>%
+  mutate(sampling_unit_new = paste(site, habitat, treatment, sampling_unit, sep = "_"))
+
+n_distinct(woody_data$sampling_unit_new) # PARA RESULTADOS DEL PAPER
+# Agrupar por 'sampling_unit_new', 'year' y 'level' (especie), y sumar las observaciones
+abundance_matrix <- woody_data %>%
+  group_by(sampling_unit_new, year, level) %>%
+  summarise(total_abundance = sum(observation, na.rm = TRUE)) %>%
+  ungroup()  # Desagrupar para las siguientes operaciones
+
+# Convertir a formato de matriz con especies como columnas
+abundance_matrix_wide <- abundance_matrix %>%
+  pivot_wider(names_from = level, values_from = total_abundance, values_fill = list(total_abundance = 0))
+
+# Ver el resultado
+head(abundance_matrix_wide)
+```
+```{r}
+# Primero, seleccionamos solo las columnas relevantes: 'sampling_unit_new', 'year' y las especies
+wide_data <- abundance_matrix_wide %>%
+  pivot_wider(
+    names_from = year,                     # Usamos 'year' para dividir en columnas de 2021 y 2022
+    values_from = -c(sampling_unit_new, year),  # Excluimos 'sampling_unit_new' y 'year', ya que son identificadores
+    names_glue = "{.value}_Y{year}",        # Creamos nombres de columnas como 'species_Y2021' o 'species_Y2022'
+    values_fill = list(abundance = 0)       # Rellenamos los valores faltantes con 0
+)
+
+# Ver la estructura del nuevo dataset
+head(wide_data)
+```
+```{r}
+# Calcular la disimilitud de Bray-Curtis entre 2021 y 2022 para cada transecto
+disimilaridad <- wide_data %>%
+  rowwise() %>%
+  mutate(
+    bray_curtis = {
+      # Extraer las columnas de las especies para los años 2021 y 2022
+      datos_2021 <- c_across(ends_with("_Y2021"))
+      datos_2022 <- c_across(ends_with("_Y2022"))
+      
+      # Verificar si hay NA en los datos
+      if (any(is.na(datos_2021)) | any(is.na(datos_2022))) {
+        NA  # Si hay NA, asignar NA a Bray-Curtis
+      } else {
+        # Calcular la disimilitud de Bray-Curtis usando las abundancias de las especies
+        vegdist(rbind(datos_2021, datos_2022), method = "bray")[1]
+      }
+    }
+  ) %>%
+  ungroup() %>%
+  select(sampling_unit_new, bray_curtis)
+
+# Ver el resultado
+head(disimilaridad)
+hist(disimilaridad$bray_curtis)
+```
+
+```{r}
+library(vegan)
+require(vegan)
+# Crear una matriz de especies (sin variables categóricas)
+species_matrix <- select(abundance_matrix_wide, -year, -sampling_unit_new)
+
+# Calcular los números de Hill para cada muestra
+abundance_matrix_wide <- abundance_matrix_wide %>%
+  mutate(
+    Riqueza = rowSums(species_matrix > 0),  # Hill q = 0
+    Shannon = exp(vegan::diversity(species_matrix, index = "shannon")),  # Hill q = 1
+    Simpson = vegan::diversity(species_matrix, index = "invsimpson"),  # Hill q = 2
+    Abundancia = rowSums(species_matrix)  # Abundancia total de individuos
+  )
+
+# Reorganizar el dataframe para incluir solo las columnas necesarias
+abundance_matrix_wide <- abundance_matrix_wide %>%
+  select(1:2, (ncol(abundance_matrix_wide) - 3):ncol(abundance_matrix_wide))  # Incluir 'Abundancia'
+
+# Verificar la estructura final de abundance_matrix_wide
+head(abundance_matrix_wide)
+#hist(abundance_matrix_wide$Abundancia)
+```
+
+## Guardo datos para baci
+```{r}
+write.csv(abundance_matrix_wide, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/woody.csv", row.names = FALSE)
+```
+
+# Ahora transformamos a datasets de diferencias, y le pegamos bray-curtis
+```{r}
+# Filtrar los datos para calcular la diferencia de métricas entre 2021 y 2022
+diferencias <- abundance_matrix_wide %>%
+  filter(year %in% c(2021, 2022)) %>%
+  gather(key = "métrica", value = "valor", Riqueza, Shannon, Simpson, Abundancia) %>%
+  spread(key = "year", value = "valor") %>%
+  mutate(diferencia_2022_2021 = `2022` - `2021`) %>%
+  select(sampling_unit_new, métrica, diferencia_2022_2021)
+
+# Eliminar filas con NA
+diferencias <- diferencias %>%
+  drop_na()
+
+# Crear un dataframe para Bray-Curtis que ya has calculado
+disimilaridad_long <- disimilaridad %>%
+  mutate(
+    métrica = "Bray-Curtis",
+    diferencia_2022_2021 = bray_curtis
+  ) %>%
+  select(sampling_unit_new, métrica, diferencia_2022_2021)
+
+# Unir las diferencias de métricas con Bray-Curtis
+diferencias_actualizado <- bind_rows(diferencias, disimilaridad_long)
+
+# Verificamos la estructura final
+str(diferencias_actualizado)
+
+# Separar la columna sampling_unit_new
+diferencias_actualizado <- diferencias_actualizado %>%
+  separate(sampling_unit_new, into = c("site", "habitat", "treatment", "sampling_unit"), sep = "_") %>%
+  select(site, habitat, treatment, sampling_unit, métrica, diferencia_2022_2021)
+
+# Verificar la estructura final
+head(diferencias_actualizado)
+
+```
+
+```{r}
+# Ahora podemos graficar los resultados
+# Crear un vector de colores para los tratamientos
+colores_tratamientos <- c(
+  "control" = "#6A9373",  # Color para 'control'
+  "high" = "#E6B800",  # Color para 'high'
+  "hyper" = "#9B5F96"  # Color para 'hyper'
+)
+
+
+# Boxplot para Abundancia
+ggplot(diferencias_actualizado %>% filter(métrica == "Abundancia"), aes(x = treatment, y = diferencia_2022_2021, fill = treatment)) +
+  geom_boxplot() +  # Boxplot con colores personalizados
+     geom_jitter(width = 0.2, size = 2, alpha = 0.7) +
+  stat_summary(fun = mean, geom = "point", shape = 21, size = 4, color = "black", fill = "black") + 
+  scale_fill_manual(values = colores_tratamientos) +  
+  facet_grid(site ~ ., scales = "free_y") +  # Organiza por sitio
+  labs(
+    title = "Contrastes en Abundancia entre tratamientos por sitio",
+    x = "Tratamiento",
+    y = "Diferencia en Abundancia (2022 - 2021)",
+    fill = "Tratamiento"
+  ) +
+  theme_minimal() +  # Tema minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotación del texto en el eje X para mejor visibilidad
+    strip.background = element_rect(fill = "lightblue", color = "black"),  # Fondo de las etiquetas de los gráficos
+    strip.text = element_text(face = "bold", color = "black"),  # Estilo de las etiquetas
+    panel.border = element_rect(color = "black", fill = NA, size = 1)  # Encadre de los paneles
+  )
+
+
+# Boxplot para Riqueza, Shannon, y Simpson
+ggplot(diferencias_actualizado %>% filter(métrica %in% c("Riqueza", "Shannon", "Simpson")), aes(x = treatment, y = diferencia_2022_2021, fill = treatment)) +
+  geom_boxplot() +  # Boxplot con colores personalizados
+     geom_jitter(width = 0.2, size = 2, alpha = 0.7) +
+  stat_summary(fun = mean, geom = "point", shape = 21, size = 4, color = "black", fill = "black") + 
+  scale_fill_manual(values = colores_tratamientos) +  
+  facet_grid(site ~ métrica, scales = "free_y") +  # Organiza por sitio y métrica
+  labs(
+    title = "Contrastes en Riqueza, Shannon y Simpson entre tratamientos por sitio",
+    x = "Tratamiento",
+    y = "Diferencia en la métrica (2022 - 2021)",
+    fill = "Tratamiento"
+  ) +
+  theme_minimal()+  # Tema minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotación del texto en el eje X para mejor visibilidad
+    strip.background = element_rect(fill = "lightblue", color = "black"),  # Fondo de las etiquetas de los gráficos
+    strip.text = element_text(face = "bold", color = "black"),  # Estilo de las etiquetas
+    panel.border = element_rect(color = "black", fill = NA, size = 1)  # Encadre de los paneles
+  )
+
+# Boxplot para Bray-Curtis
+ggplot(diferencias_actualizado %>% filter(métrica == "Bray-Curtis"), aes(x = treatment, y = diferencia_2022_2021, fill = treatment)) +
+  geom_boxplot() +  # Boxplot con colores personalizados
+   geom_jitter(width = 0.2, size = 2, alpha = 0.7) +
+  stat_summary(fun = mean, geom = "point", shape = 21, size = 4, color = "black", fill = "black") + 
+  scale_fill_manual(values = colores_tratamientos) +  
+  facet_grid(site ~ ., scales = "free_y") +  # Organiza por sitio
+  labs(
+    title = "Contrastes en Bray-Curtis entre tratamientos por sitio",
+    x = "Tratamiento",
+    y = "Diferencia en Bray-Curtis (2022 - 2021)",
+    fill = "Tratamiento"
+  ) +
+  theme_minimal() +  # Tema minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotación del texto en el eje X para mejor visibilidad
+    strip.background = element_rect(fill = "lightblue", color = "black"),  # Fondo de las etiquetas de los gráficos
+    strip.text = element_text(face = "bold", color = "black"),  # Estilo de las etiquetas
+    panel.border = element_rect(color = "black", fill = NA, size = 1)  # Encadre de los paneles
+  )
+
+```
+
+
+
+Guardo datos procesados en nuevo formato
+```{r}
+diferencias_actualizado <- diferencias_actualizado %>%
+  rename(indice = métrica)
+
+woody_taxonomy_delta <- diferencias_actualizado %>%
+  mutate(indice = recode(indice,
+                         "Abundancia" = "delta_abundancia",
+                         "Riqueza" = "delta_riqueza",
+                         "Shannon" = "delta_shannon",
+                         "Simpson" = "delta_simpson",
+                         "Bray-Curtis" = "delta_braycurtis"))
+
+woody_taxonomy_delta <- woody_taxonomy_delta %>%
+  rename(valor = diferencia_2022_2021)
+
+woody_taxonomy_delta <- woody_taxonomy_delta %>%
+  mutate(sampling_unit = paste0(sampling_unit, "_", habitat))
+
+```
+
+## Clean data save
+```{r}
+write.csv(woody_taxonomy_delta, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/taxonomy/woody_taxonomy_delta.csv", row.names = FALSE)
+```
+
+# Brazo nuevo de análisis.
+```{r}
+new_data <- abundance_matrix_wide 
+new_data
+
+new_data <- new_data %>%
+  separate(sampling_unit_new, into = c("site", "habitat", "treatment", "track"), sep = "_")
+new_data <-new_data %>% select (-habitat)
+
+new_data <- new_data %>%
+  filter(treatment %in% c("control", "high","hyper"))
+
+# Calcular la media, desviación estándar y número de muestras por tratamiento y año
+summary_stats <- new_data %>%
+  group_by(treatment, year) %>%
+  summarise(
+    mean_Riqueza = mean(Riqueza, na.rm = TRUE),
+    sd_Riqueza = sd(Riqueza, na.rm = TRUE),
+    mean_Shannon = mean(Shannon, na.rm = TRUE),
+    sd_Shannon = sd(Shannon, na.rm = TRUE),
+    mean_Simpson = mean(Simpson, na.rm = TRUE),
+    sd_Simpson = sd(Simpson, na.rm = TRUE),
+    mean_Abundancia = mean(Abundancia, na.rm = TRUE),
+    sd_Abundancia = sd(Abundancia, na.rm = TRUE),
+    n_samples = n()  # Número de muestras usadas para calcular la media y la SD
+  )
+
+summary_stats<-as.data.frame(summary_stats)
+
+# ------------------------------------------------------------------------------
+# PASO 1: Preparar los datos (convertir a formato largo)
+# ------------------------------------------------------------------------------
+datos_long <- summary_stats %>%
+  pivot_longer(
+    cols = -c(treatment, year, n_samples),
+    names_to = c(".value", "variable"),
+    names_sep = "_"
+  )
+
+# ------------------------------------------------------------------------------
+# PASO 2: HIGH vs CONTROL - Usando escalc()
+# ------------------------------------------------------------------------------
+# Filtrar y calcular lnRR con escalc para high
+high_results <- datos_long %>%
+  filter(treatment %in% c("high", "control")) %>%
+  group_by(variable, year) %>%
+  group_modify(~ {
+    experimental <- filter(.x, treatment == "high")
+    control <- filter(.x, treatment == "control")
+    
+    escalc(
+      measure = "ROM",  # Ratio of Means (lnRR)
+      m1i = experimental$mean,
+      m2i = control$mean,
+      sd1i = experimental$sd,
+      sd2i = control$sd,
+      n1i = experimental$n_samples,
+      n2i = control$n_samples
+    ) %>%
+      as_tibble()
+  }) %>%
+  rename(lnRR = yi, var_lnRR = vi)
+
+# Cálculo BACI para high
+baci_high <- high_results %>%
+  pivot_wider(names_from = year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    Interpretacion = case_when(
+      CI_lower > 0 ~ "HIGH: Efecto disminuyó en 2022 (p < 0.05)",
+      CI_upper < 0 ~ "HIGH: Efecto aumentó en 2022 (p < 0.05)",
+      TRUE ~ "HIGH: Sin cambio significativo"
+    )
+  ) %>%
+  select(variable, Delta_lnRR, CI_lower, CI_upper, Interpretacion)
+
+# ------------------------------------------------------------------------------
+# PASO 3: HYPER vs CONTROL - Usando escalc()
+# ------------------------------------------------------------------------------
+# Filtrar y calcular lnRR con escalc para hyper
+hyper_results <- datos_long %>%
+  filter(treatment %in% c("hyper", "control")) %>%
+  group_by(variable, year) %>%
+  group_modify(~ {
+    experimental <- filter(.x, treatment == "hyper")
+    control <- filter(.x, treatment == "control")
+    
+    escalc(
+      measure = "ROM",
+      m1i = experimental$mean,
+      m2i = control$mean,
+      sd1i = experimental$sd,
+      sd2i = control$sd,
+      n1i = experimental$n_samples,
+      n2i = control$n_samples
+    ) %>%
+      as_tibble()
+  }) %>%
+  rename(lnRR = yi, var_lnRR = vi)
+
+# Cálculo BACI para hyper
+baci_hyper <- hyper_results %>%
+  pivot_wider(names_from = year, values_from = c(lnRR, var_lnRR)) %>%
+  mutate(
+    Delta_lnRR = lnRR_2022 - lnRR_2021,
+    Delta_var = var_lnRR_2021 + var_lnRR_2022,
+    CI_lower = Delta_lnRR - 1.96 * sqrt(Delta_var),
+    CI_upper = Delta_lnRR + 1.96 * sqrt(Delta_var),
+    Interpretacion = case_when(
+      CI_lower > 0 ~ "HYPER: Efecto disminuyó en 2022 (p < 0.05)",
+      CI_upper < 0 ~ "HYPER: Efecto aumentó en 2022 (p < 0.05)",
+      TRUE ~ "HYPER: Sin cambio significativo"
+    )
+  ) %>%
+  select(variable, Delta_lnRR, CI_lower, CI_upper, Interpretacion)
+
+# ------------------------------------------------------------------------------
+# RESULTADOS CONSOLIDADOS
+# ------------------------------------------------------------------------------
+resultados_finales <- bind_rows(
+  baci_high %>% mutate(Tratamiento = "HIGH"),
+  baci_hyper %>% mutate(Tratamiento = "HYPER")
+) %>%
+  select(Tratamiento, everything())
+
+# Mostrar resultados
+print(resultados_finales)
+```
+```{r}
+library(ggplot2)
+
+# 1. Preparar datos para el gráfico (usando resultados_finales del código anterior)
+grafico_baci <- ggplot(resultados_finales, 
+                       aes(x = variable, y = Delta_lnRR, color = Tratamiento)) +
+  # Puntos y barras de error
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  
+  # Línea de referencia (cambio nulo)
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
+  
+  # Ajustes estéticos
+  scale_color_manual(values = c("HIGH" = "#E69F00", "HYPER" = "#56B4E9")) +
+  labs(
+    title = "Cambio en el efecto de los tratamientos (2022 vs 2021)",
+    subtitle = "ΔlnRR con IC 95%: positivo = efecto disminuyó, negativo = efecto aumentó",
+    x = "Variable",
+    y = "ΔlnRR (2022 - 2021)",
+    color = "Tratamiento"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major.x = element_blank()
+  )
+
+# Mostrar gráfico
+print(grafico_baci)
+
+# Guardar (opcional)
+ggsave("baci_plot.png", grafico_baci, width = 10, height = 6, dpi = 300)
+```
+```{r}
+library(ggplot2)
+
+# 1. Combinar resultados de high y hyper (sin deltas)
+resultados_lnRR <- bind_rows(
+  high_results %>% mutate(Tratamiento = "HIGH"),
+  hyper_results %>% mutate(Tratamiento = "HYPER")
+) %>%
+  # Calcular IC 95% para cada lnRR
+  mutate(
+    CI_lower = lnRR - 1.96 * sqrt(var_lnRR),
+    CI_upper = lnRR + 1.96 * sqrt(var_lnRR),
+    # Factor para año (mejor visualización)
+    Year = factor(year)
+  )
+
+# 2. Crear gráfico
+grafico_lnRR <- ggplot(resultados_lnRR, 
+                       aes(x = Year, y = lnRR, color = Tratamiento)) +
+  # Puntos y barras de error
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(
+    aes(ymin = CI_lower, ymax = CI_upper),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  
+  # Línea de referencia (sin efecto)
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
+  
+  # Facets por variable
+  facet_wrap(~variable, scales = "free_y", ncol = 2) +
+  
+  # Ajustes estéticos
+  scale_color_manual(values = c("HIGH" = "#E69F00", "HYPER" = "#56B4E9")) +
+  labs(
+    title = "Efecto de los tratamientos vs control (lnRR ± IC 95%)",
+    subtitle = "lnRR > 0: Aumento vs control | lnRR < 0: Disminución vs control",
+    x = "Año",
+    y = "lnRR (log Response Ratio)",
+    color = "Tratamiento"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "top",
+    strip.background = element_rect(fill = "gray90", color = NA),
+    panel.grid.major.x = element_blank()
+  )
+
+# Mostrar gráfico
+print(grafico_lnRR)
+
+# Guardar (opcional)
+ggsave("lnRR_plot.png", grafico_lnRR, width = 12, height = 8, dpi = 300)
+```
+
+Limpio el espacio
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```

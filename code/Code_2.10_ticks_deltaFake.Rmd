@@ -1,0 +1,68 @@
+---
+title: "Code_2.10_ticks_deltaFake"
+author: "Jorge"
+date: "2025-04-10"
+output: html_document
+---
+
+
+```{r}
+# Cargar las librerías necesarias
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(ggforce)
+```
+
+# Cargar el archivo de datos
+```{r}
+# Cargar el archivo de datos
+ticks <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/ticks_clean_data.csv")
+names(ticks)
+```
+```{r}
+# Crear la nueva columna con la combinación de site, treatment, sampling_unit y year
+ticks$new_column <- paste(ticks$site, ticks$treatment, ticks$sampling_unit, ticks$year, sep = "/")
+
+ticks_summary <- ticks %>%
+  group_by(new_column) %>%
+  summarise(mean_observation = mean(observation, na.rm = TRUE), .groups = 'drop') %>%
+  right_join(ticks, by = "new_column")
+
+# Ver el resultado
+head(ticks_summary)
+
+# Eliminar las columnas new_column, observation y date
+ticks_summary <- ticks_summary %>%
+  select(-new_column, -observation, -date)
+
+```
+
+
+```{r}
+ticks_summary <- ticks_summary %>%
+  distinct()
+
+# Cambiar el nombre de la columna total_observation a observation
+ticks_summary <- ticks_summary %>%
+  rename(observation = mean_observation)
+```
+
+## Clean data save
+```{r}
+write.csv(ticks_summary, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/ticks_summary.csv", row.names = FALSE)
+
+```
+
+Limpio el espacio
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```

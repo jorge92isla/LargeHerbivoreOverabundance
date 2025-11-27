@@ -1,0 +1,384 @@
+---
+title: "Code_1.12_data_carpintry_regeneration"
+author: "Jorge"
+date: "2025-04-14"
+output: html_document
+---
+
+Este es el código de data carpintry para los datos de regeneración.
+Estos datos me los han pasado junto con la info de disepersión de bellotas que me manda David García del Olmo y que recopiló junto con Juancho Calleja.
+
+Entiendo que los transectos son los mismos que para la vegetación leñosa así que todo lo que tiene que ver con la codificacion etcétera creo que lo voy a sacar de ahí, de lo que me pasó Juancho.
+
+Solamente tienen datos replicados en el tiempo para Toledo 
+
+## Cargando paquetes
+
+```{r cargando paquetes, include=FALSE}
+#library()
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(stringr)
+```
+
+Cargando datos
+
+regeneracion_raw_data = toledo
+regeneracion_new = valencia 2020 que lo vamos a llamar 2021
+regeneracion_new2= valencia 2022
+
+```{r Cargando datos}
+regeneracion_raw_data <- as.data.frame(read_excel(file.path("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_raw/regenerationANDacorns/Bellotas22.xlsx"), sheet = "Regeneración 21_22"))
+regeneracion_raw_data<-as.data.frame(regeneracion_raw_data)
+
+regeneracion_new <- as.data.frame(read_excel("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_raw/vegetation/Leñosas QM_MC_26022024.xlsx", 
+    sheet = "Regeneración MC 2020"))
+
+regeneracion_new2 <- as.data.frame(read_excel("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_raw/vegetation/Leñosas QM_MC_26022024.xlsx", 
+    sheet = "Regeneración QM 2021_22 y MC 20"))
+```
+
+Errores de nombres
+```{r}
+regeneracion_raw_data <- regeneracion_raw_data %>%
+  mutate(Especie = case_when(
+    Especie == "Arbutus undedo"   ~ "Arbutus unedo",
+    Especie == "Cistus ladafiner" ~ "Cistus ladanifer",
+    TRUE ~ Especie
+  ))
+
+
+regeneracion_new <- regeneracion_new %>%
+  mutate(especie = case_when(
+    especie == "Arbutus undedo"   ~ "Arbutus unedo",
+    especie == "Cistus ladafiner" ~ "Cistus ladanifer",
+    TRUE ~ especie
+  ))
+
+regeneracion_new2 <- regeneracion_new2 %>%
+  mutate(Especie = case_when(
+    Especie == "Arbutus undedo"   ~ "Arbutus unedo",
+    Especie == "Cistus ladafiner" ~ "Cistus ladanifer",
+    TRUE ~ Especie
+  ))
+```
+
+
+En 2020 muestreamos 15 transectos por "tratamiento": 15 iban a ser High, 15 Hiper, 15 control (7 en un cercado y 8 en otro) 15 fuera (7 junto a un cercado y 8 junto a otro).
+En 2022 se decidió reducir el esfuerzo: 10 por "tratamiento y no se pudo muestrear "fuera".
+
+Los datos de regeneración y de riqueza y cobertura debieran estar para todos estos transectos:
+
+Transectos control en la zona de High, tanto en 2020 como en 2022: 16, 17, 18, 19, 20, 21 y 22. En negro los muestreado en 2020 y 2022. En azul los muestreados solo en 2020.
+Transectos en la zona High, tanto en 2020 como en 2022:  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15. En negro los muestreado en 2020 y 2022. En azul los muestreados solo en 2020.
+Fuera (junto al cercado de High): 23, 24, 25, 26, 27, 28, 29. En azul los muestreados solo en 2020.
+
+Transectos control en la zona de Hiper, tanto en 2020 como en 2022: 45, 46, 47, 48, 49, 50, 51, 52. En negro los muestreado en 2020 y 2022. En azul los muestreados solo en 2020.
+Transectos en la zona Hiper, tanto en 2020 como en 2022:  38, 39, 40, 41, 42, 43, 44, 53, 54, 55, 56, 57, 58, 59, 60. En negro los muestreado en 2020 y 2022. En azul los muestreados solo en 2020.
+Fuera (junto al cercado de Hiper): 30, 31, 32, 33, 34, 35, 36, 37. En azul los muestreados solo en 2020.
+
+
+
+Ajustamos los niveles de tratamiento
+```{r}
+# Quito el tratamiento = FUERA
+regeneracion_raw_data <- regeneracion_raw_data %>% 
+  filter(Tratamiento != "FUERA")
+regeneracion_new <- regeneracion_new %>% 
+  filter(tratamiento != "FUERA")
+regeneracion_new2 <- regeneracion_new2 %>% 
+  filter(Treatment != "FUERA")
+
+#Del nuevo dataset me cargo todo lo que ya tengo, de ahí quiero sacar solo MC 2022
+regeneracion_new2 <- regeneracion_new2 %>% 
+  filter(Zona != "QM")
+
+
+#Cambio nombres a las que tengo mas seguras
+regeneracion_raw_data <- regeneracion_raw_data %>%
+  mutate(Tratamiento = recode(Tratamiento,
+                              "CONTROL" = "control",
+                              "C"= "control",
+                              "BAJA"= "high",
+                              "ALTA" = "hyper"))
+
+# Comprobando los datasets de excel, me doy cuenta que para esta gente A = Alta y B = Baja, o lo que es en el lenguaje mío A = Hyper y B = High
+regeneracion_raw_data <- regeneracion_raw_data %>%
+  mutate(Tratamiento = recode(Tratamiento,
+                              "B"= "high",
+                              "A" = "hyper"))
+
+#Veo que me quedo con lo que yo quería!
+unique(regeneracion_raw_data$Tratamiento)
+
+#Voy a cambiar algunos nombres basicos. 
+regeneracion_raw_data <- regeneracion_raw_data %>%
+  rename(
+    site = Zona,
+    year = Año,
+    treatment = Tratamiento,
+    habitat = Hábitat,
+    track = Transecto,
+    species = Especie
+  )
+#Voy a cambiar algunos nombres basicos.
+regeneracion_new <- regeneracion_new %>%
+  rename(
+    site = zona,
+    treatment = tratamiento,
+    habitat = micrositio,
+    track = transecto,
+    species = especie
+  )
+regeneracion_new$year <- "2021"
+
+
+names(regeneracion_raw_data)[10] <- "reg/seed"
+
+
+#Creo esa misma columna para  en el dataset bnuevo
+regeneracion_new$`reg/seed` <- NA
+
+#Si tiene una mata asociada, le damos un 1, si no hay mata, le damos un 2
+regeneracion_new <- regeneracion_new %>%
+  mutate(`reg/seed` = ifelse(is.na(`Nº mata`), 2, 1))
+
+#Aquí me traigo la chueta de los transectos que me ha pasado Juancho.
+regeneracion_new <- regeneracion_new %>%
+  mutate(
+    treatment = case_when(
+      track %in% 16:22 ~ "control_high",
+      track %in% 1:15 ~ "high",
+      track %in% 45:52 ~ "control_hyper",
+      track %in% c(38:44, 53:60) ~ "hyper",
+      TRUE ~ NA_character_
+    )
+  )
+
+regeneracion_new2 <- regeneracion_new2 %>%
+  mutate(
+    treatment = case_when(
+      Transecto %in% 16:22 ~ "control_high",
+      Transecto %in% 1:15 ~ "high",
+      Transecto %in% 45:52 ~ "control_hyper",
+      Transecto %in% c(38:44, 53:60) ~ "hyper",
+      TRUE ~ NA_character_
+    )
+  )%>%
+  select(-Treatment, -Habitat)
+
+
+names(regeneracion_raw_data) # Ten en cuenta que en la columna reg/seed cuando aparece un 1 es que se trata de un regenerado con crecimiento vegetativo, y cuando aparece un 2, lo es de semilla, con esto tengo un ligero problema y es que esta información no la tienen siempre, por lo que voy a perder datos y siempre voy a trabajar con reclutamiento a partir de semillas.
+
+#Me cargo lo que se ha plantado artificialmente
+regeneracion_raw_data <- regeneracion_raw_data %>% 
+  filter(Plantadas != 1)
+#A Site le imputamos Toledo
+regeneracion_raw_data <- regeneracion_raw_data %>% 
+  mutate(site = "toledo")
+#A Site le imputamos Valencia
+regeneracion_new <- regeneracion_new %>% 
+  mutate(site = "valencia")
+#A Site le imputamos Valencia
+regeneracion_new2 <- regeneracion_new2 %>% 
+  mutate(Zona = "valencia")
+
+regeneracion_new2 <- regeneracion_new2 %>%
+  rename(site = Zona)
+regeneracion_new2 <- regeneracion_new2 %>%
+  rename(year = Año)
+regeneracion_new2 <- regeneracion_new2 %>%
+  rename(track = Transecto)
+regeneracion_new2 <- regeneracion_new2 %>%
+  rename(species = Especie)
+regeneracion_new2 <- regeneracion_new2 %>%
+  rename(`reg/seed` = `Regeneración vegetativa = 1 o Semilla = 2`)
+
+regeneracion_new <- regeneracion_new %>%
+  rename(altura_cm = `altura(m)`)
+
+regeneracion_new <- regeneracion_new %>%
+  rename(dbasal_cm = `diam. Basal (cm)`)
+
+regeneracion_new <- regeneracion_new %>%
+  mutate(
+    altura_cm = altura_cm * 100
+  )
+
+# Seleccionar solo las columnas comunes en cada dataset
+raw_sel <- regeneracion_raw_data %>%
+  mutate(year = as.numeric(year)) %>%
+  select(site, year, track, species, `reg/seed`, dbasal_cm, altura_cm, treatment)
+
+new_sel <- regeneracion_new %>%
+  mutate(year = as.numeric(year)) %>%
+  select(site, year, track, species, `reg/seed`, dbasal_cm, altura_cm, treatment)
+
+new2_sel <- regeneracion_new2 %>%
+  mutate(year = as.numeric(year)) %>%
+  select(site, year, track, species, `reg/seed`, dbasal_cm, altura_cm, treatment)
+
+regeneracion_raw_data <- bind_rows(raw_sel, new_sel, new2_sel)
+
+```
+
+
+
+Aplicamos filtros:
+```{r}
+# El criterio de esta gente para incluir reclutas nuevos es demasiado laxo, me voy a restringir a plantas realmente pequeñas para estar seguro de que son regeneración real, esto es (menos de 10cm de altura y menos de 0.5cm de diámetro basal). Esto se lo aplico a las plantas detectadas en todos los tratamientos y todos los años.
+
+#Altura
+regeneracion_raw_data <- regeneracion_raw_data %>%  filter(altura_cm <= 50 | is.na(altura_cm))
+
+#Diámetro basal
+regeneracion_raw_data <- regeneracion_raw_data %>% filter(dbasal_cm <= 1 | is.na(dbasal_cm))
+
+#Únicamente regeneración semillas
+regeneracion_semillas <- regeneracion_raw_data 
+#%>%  filter(`reg/seed` == 2)  
+```
+
+
+
+Ahora quiero crear el nuevo sampling_unit para poder hacer el sumatorio de las especies en cada transecto de cada año, para cada habitat
+```{r}
+regeneracion_semillas$sampling_unit <- paste(regeneracion_semillas$site,
+                                             regeneracion_semillas$year,
+                                           regeneracion_semillas$treatment,
+                                           regeneracion_semillas$track,
+                                           sep = "/")
+head(regeneracion_semillas)
+```
+
+Creo los datasets con los sumatorios
+```{r}
+regeneracion_semillas <- regeneracion_semillas %>%
+  group_by(sampling_unit, species) %>%
+  mutate(observation = n()) %>%
+  ungroup()
+```
+
+Los dejo limpios, solo con lo que me interesa
+```{r}
+regeneracion_semillas <- regeneracion_semillas %>%
+  select(site, year, treatment, track, species, sampling_unit, observation)
+```
+
+```{r}
+regeneracion_semillas <- regeneracion_semillas %>%
+  distinct()  # Elimina filas completamente duplicadas
+
+write.csv(regeneracion_semillas,
+          "~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/regeneracion_clean_data.csv",
+          row.names = FALSE)
+
+n_distinct(regeneracion_semillas$sampling_unit)
+```
+
+```{r}
+#Para el dataset que solo tiene reclutas que sabemos 100 % que han reclutado de semilla
+cuantitativo_semillas <- regeneracion_semillas %>%
+  # Primero calcular totales por sampling_unit
+  group_by(site,year, treatment, sampling_unit) %>%
+  summarise(
+    total_abundance = sum(observation),
+    richness = n_distinct(species),
+    .groups = 'drop'
+  ) 
+
+# Resumen final por site, year y treatment
+resumen_semillas <- cuantitativo_semillas %>%
+  group_by(site, year, treatment) %>%
+  summarise(
+    mean_abundance = mean(total_abundance),
+    sd_abundance = sd(total_abundance),
+    n_abundance = n(),
+    mean_richness = mean(richness),
+    sd_richness = sd(richness),
+    n_richness = n(),
+    .groups = "drop"
+  )
+
+
+# Calcular matriz de especies por transecto
+diversidad_semillas <- regeneracion_semillas %>%
+  group_by(site, year, treatment, sampling_unit, species) %>%
+  summarise(abundance = sum(observation), .groups = "drop") %>%
+  pivot_wider(names_from = species, values_from = abundance, values_fill = 0)
+#diversidad_semillas_venn<-diversidad_semillas
+
+# Calcular índice de Simpson inverso por transecto
+diversidad_semillas <- diversidad_semillas %>%
+  rowwise() %>%
+  mutate(Simpson = vegan::diversity(c_across(-c(site, year, treatment, sampling_unit)), index = "invsimpson")) %>%
+  ungroup()
+
+# Resumen final por site, year y treatment
+resumen_simpson <- diversidad_semillas %>%
+  group_by(site, year, treatment) %>%
+  summarise(
+    mean_simpson = mean(Simpson),
+    sd_simpson = sd(Simpson),
+    n_simpson = n(),
+    .groups = "drop"
+  )
+resumen_simpson
+
+resumen_total <- resumen_semillas %>%
+  left_join(resumen_simpson, by = c("site","year", "treatment"))
+```
+
+## Clean data save for woody
+```{r}
+write.csv(resumen_total, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/recruitment.csv", row.names = FALSE)
+```
+
+
+#Exploro lo del tamaño
+```{r}
+library(ggplot2)
+# Aseguramos que las variables categóricas sean factores
+regeneracion_raw_data_size <- regeneracion_raw_data %>%
+  mutate(
+    site = as.factor(site),
+    treatment = as.factor(treatment),
+    year = as.factor(year)
+  )
+
+# Gráfico
+ggplot(
+  regeneracion_raw_data_size %>%
+    mutate(
+      site = as.factor(site),
+      treatment = as.factor(treatment),
+      year = as.factor(year)
+    ),
+  aes(x = altura_cm, color = year, fill = year)
+) +
+  geom_density(alpha = 0.3) +
+  facet_grid(site ~ treatment) +
+  labs(
+    title = "Distribución de altura por sitio, tratamiento y año",
+    x = "Altura (cm)",
+    y = "Densidad"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 12, face = "bold"),
+    legend.position = "top"
+  )
+```
+
+Limpio el espacio
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```

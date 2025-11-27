@@ -1,0 +1,236 @@
+---
+title: "Integrative_BACI"
+author: "Jorge"
+date: "2025-05-12"
+output: html_document
+---
+
+```{r}
+# Cargar librerías necesarias
+library(tidyverse)
+library(fs)
+
+# 1. Definir la ruta donde están los archivos CSV (ajusta esto a tu directorio)
+ruta_datos <- "~/Documents/GitHub/PAELLALAB/INCREMENTO/results/"
+
+# 2. Listar todos los archivos CSV que terminan en "_baci_results.csv"
+archivos <- dir_ls(ruta_datos, regexp = "_baci_results\\.csv$")
+
+# 3. Función para leer y estandarizar cada archivo
+leer_y_estandarizar <- function(archivo) {
+  # Extraer el nombre del grupo (ej. "ants", "networks") del nombre del archivo
+  grupo <- str_remove(basename(archivo), "_baci_results\\.csv")
+  
+  # Leer el archivo y añadir columna 'Grupo'
+  read_csv(archivo) %>% 
+    mutate(Grupo = grupo, .before = 1)  # Añade la columna al inicio
+}
+
+# 4. Cargar y combinar todos los datos
+datos_combinados <- map_dfr(archivos, leer_y_estandarizar)
+
+# 5. Opcional: Revisar nombres de columnas para estandarizar
+# (Si hay diferencias entre archivos, aquí puedes unificar nombres)
+names(datos_combinados) <- names(datos_combinados) %>% 
+  str_to_lower() %>% 
+  str_replace_all(" ", "_")
+
+# 7. Ver las primeras filas
+head(datos_combinados)
+```
+
+Voy a añadir una columna nueva que unifique grupo y variable
+```{r}
+# Asumiendo que tu dataframe combinado se llama 'datos_combinados'
+datos_combinados <- datos_combinados %>% 
+  mutate(variable2 = paste(grupo, variable, sep = "_"))  # Separa con "_"
+
+# Verificación
+head(datos_combinados %>% select(grupo, variable, variable2))
+
+datos_combinados %>% 
+  distinct(variable2) %>% 
+  as.data.frame()  # Convierte a dataframe para evitar truncamiento
+```
+
+```{r}
+ library(dplyr)
+
+datos_combinados <- datos_combinados %>%
+  mutate(type = case_when(
+    variable2 == "ants_Riqueza" ~ "diversidad",
+    variable2 == "ants_Simpson" ~ "diversidad",
+    variable2 == "ants_Abundancia" ~ "diversidad",
+    variable2 == "aves_Riqueza" ~ "diversidad",
+    variable2 == "aves_Simpson" ~ "diversidad",
+    variable2 == "aves_Abundancia" ~ "diversidad",
+    variable2 == "browsing_browsing" ~ "funcionalidad",
+    variable2 == "ecofisiologica_antocianina" ~ "funcionalidad",
+    variable2 == "ecofisiologica_clorofila" ~ "funcionalidad",
+    variable2 == "fruitset_fs_lad_pol" ~ "funcionalidad",
+    variable2 == "fruitset_fs_lad_total" ~ "funcionalidad",
+    variable2 == "fruitset_fs_pop_pol" ~ "funcionalidad",
+    variable2 == "fruitset_fs_pop_total" ~ "funcionalidad",
+    variable2 == "garrapatas_garrapatas" ~ "funcionalidad",
+    variable2 == "habitatcomposition_Bare_ground" ~ "funcionalidad",
+    variable2 == "habitatcomposition_Herbs" ~ "funcionalidad",
+    variable2 == "habitatcomposition_Woody_sp" ~ "funcionalidad",
+    variable2 == "habitatcomposition_dead_material" ~ "funcionalidad",
+    variable2 == "habitatcomposition_altura" ~ "funcionalidad",
+    variable2 == "herbáceas_Riqueza" ~ "diversidad",
+    variable2 == "herbáceas_Simpson" ~ "diversidad",
+    variable2 == "herbáceas_Abundancia" ~ "diversidad",
+    variable2 == "invertebrates_Riqueza" ~ "diversidad",
+    variable2 == "invertebrates_Simpson" ~ "diversidad",
+    variable2 == "invertebrates_Abundancia" ~ "diversidad",
+    variable2 == "leñosas_Riqueza" ~ "diversidad",
+    variable2 == "leñosas_Simpson" ~ "diversidad",
+    variable2 == "leñosas_Abundancia" ~ "diversidad",
+    variable2 == "networks_Wconnectance" ~ "funcionalidad",
+    variable2 == "networks_weighted_NODF" ~ "funcionalidad",
+    variable2 == "networks_interaction_evenness" ~ "funcionalidad",
+    variable2 == "networks_modularity" ~ "funcionalidad",
+    variable2 == "networks_riqueza_interacciones" ~ "funcionalidad",
+    variable2 == "networks_especies_polinizadores" ~ "funcionalidad",
+    variable2 == "networks_especies_plantas" ~ "diversidad",
+    variable2 == "raton_rodent_abundance" ~ "diversidad",
+    variable2 == "regeneracion_abundance" ~ "funcionalidad",
+    variable2 == "regeneracion_richness" ~ "funcionalidad",
+    variable2 == "regeneracion_simpson" ~ "funcionalidad",
+    variable2 == "sizespectrum_invertebrate_biomass" ~ "funcionalidad",
+    variable2 == "sizespectrum_lambda" ~ "funcionalidad",
+    variable2 == "suelo_soil_density" ~ "funcionalidad",
+    TRUE ~ NA_character_
+  ))
+
+```
+
+#Voy a decirle el sitio a los que no lo tengo porque solo era uno.
+
+```{r}
+#Me he dado cuenta de que todas las de diversidad que son de un único sitio, son de toledo
+datos_combinados <- datos_combinados %>%
+  mutate(site = if_else(type == "diversidad" & is.na(site), "Toledo", site))
+
+#Resulta que todos los funcionales también son de toledo, a excepción de las garrapatas
+datos_combinados <- datos_combinados %>%
+  mutate(site = case_when(
+    type == "funcionalidad" & is.na(site) & grupo == "garrapatas" ~ "Valencia",
+    type == "funcionalidad" & is.na(site) ~ "Toledo",
+    TRUE ~ site
+  ))
+
+```
+
+#Voy a cambiar los resultados de respuesta ecofisiológica, ya que realmente son un delta desde el origen.
+```{r}
+datos_combinados <- datos_combinados %>%
+  mutate(exp_delta_lnrr = if_else(grupo == "ecofisiologica", exp_lnrr, exp_delta_lnrr))
+
+```
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+datos_combinados %>%
+  filter(type == "diversidad") %>%
+  mutate(significativo = exp_ci_lower > 1 | exp_ci_upper < 1) %>%
+  ggplot(aes(x = variable2, y = exp_delta_lnrr, 
+             color = tratamiento, shape = site, alpha = significativo)) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray40") +
+  geom_point(position = position_dodge(width = 0.6), size = 3) +
+  geom_errorbar(aes(ymin = exp_ci_lower, ymax = exp_ci_upper),
+                position = position_dodge(width = 0.6), width = 0.2) +
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4)) +
+  theme_minimal(base_size = 13) +
+  labs(title = "Cambios relativos en métricas de diversidad",
+       y = "Cambio relativo (exp(ΔlnRR))",
+       x = "Métrica",
+       color = "Tratamiento",
+       shape = "Sitio",
+       alpha = "Significativo") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Preparar los datos
+datos_combinados %>%
+  filter(type == "diversidad") %>%
+  mutate(significativo = exp_ci_lower > 1 | exp_ci_upper < 1,
+         variable2 = factor(variable2, levels = unique(variable2))) %>%
+  ggplot(aes(x = variable2, y = exp_delta_lnrr, 
+             color = tratamiento, shape = site, alpha = significativo)) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray40") +
+  geom_point(position = position_dodge(width = 0.6), size = 3) +
+  geom_errorbar(aes(ymin = exp_ci_lower, ymax = exp_ci_upper),
+                position = position_dodge(width = 0.6), width = 0.2) +
+    ylim(-4, 4) +
+  coord_polar(start = 0, direction = 1) +
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4)) +
+  theme_minimal(base_size = 13) +
+  labs(title = "Cambios relativos en métricas de diversidad (diseño radial)",
+       y = "Cambio relativo (exp(ΔlnRR))",
+       x = "",
+       color = "Tratamiento",
+       shape = "Sitio",
+       alpha = "Significativo") +
+  theme(axis.text.x = element_text(size = 7, angle = 0),
+        axis.text.y = element_blank(),
+        panel.grid.major = element_line(color = "gray90"),
+        panel.grid.minor = element_blank())
+
+
+```
+
+```{r}
+datos_combinados %>%
+  filter(type == "funcionalidad") %>%
+  mutate(significativo = exp_ci_lower > 1 | exp_ci_upper < 1) %>%
+  ggplot(aes(x = variable2, y = exp_delta_lnrr, 
+             color = tratamiento, shape = site, alpha = significativo)) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray40") +
+  geom_point(position = position_dodge(width = 0.6), size = 3) +
+  geom_errorbar(aes(ymin = exp_ci_lower, ymax = exp_ci_upper),
+                position = position_dodge(width = 0.6), width = 0.2) +
+  ylim(-4, 4) +
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4)) +
+  theme_minimal(base_size = 13) +
+  labs(title = "Cambios relativos en métricas de diversidad",
+       y = "Cambio relativo (exp(ΔlnRR))",
+       x = "Métrica",
+       color = "Tratamiento",
+       shape = "Sitio",
+       alpha = "Significativo") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Preparar los datos
+datos_combinados %>%
+  filter(type == "funcionalidad") %>%
+  mutate(significativo = exp_ci_lower > 1 | exp_ci_upper < 1,
+         variable2 = factor(variable2, levels = unique(variable2))) %>%
+  ggplot(aes(x = variable2, y = exp_delta_lnrr, 
+             color = tratamiento, shape = site, alpha = significativo)) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray40") +
+  geom_point(position = position_dodge(width = 0.6), size = 3) +
+  geom_errorbar(aes(ymin = exp_ci_lower, ymax = exp_ci_upper),
+                position = position_dodge(width = 0.6), width = 0.2) +
+    ylim(-4,3) +
+  coord_polar(start = 0, direction = 1) +
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4)) +
+  theme_minimal(base_size = 13) +
+  labs(title = "Cambios relativos en métricas de diversidad (diseño radial)",
+       y = "Cambio relativo (exp(ΔlnRR))",
+       x = "",
+       color = "Tratamiento",
+       shape = "Sitio",
+       alpha = "Significativo") +
+  theme(axis.text.x = element_text(size = 7, angle = 0),
+        axis.text.y = element_blank(),
+        panel.grid.major = element_line(color = "gray90"),
+        panel.grid.minor = element_blank())
+```
+```
+
+

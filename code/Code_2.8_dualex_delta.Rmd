@@ -1,0 +1,336 @@
+---
+title: "Code_2.8_dualex_delta"
+author: "Jorge"
+date: "2025-03-20"
+output: html_document
+---
+
+🌱🗜️🌱🗜️🌱🗜️🌱🗜️🌱🗜️🌱🗜️🌱🗜️🌱🗜️🌱🗜️🌱🗜️🌱🗜️🌱🗜️🌱🗜️🌱🗜️🌱🗜️🌱🗜️🌱🗜️🌱🗜️
+
+Este es el dataset taxonomía de **dualex** que me envía Menchu.
+
+-   *Dimensión temporal:* Both 2021 & 2022, pero Valencia solo tiene 2022
+-   *Dimensión espacial:* Both valencia & toledo
+-   *jorge_traductor* Menchu me pasó la chuleta cuando fuí a Madrid.
+
+Al loro con DUALEX, pues genera diferentes medidas de las que me voy a quedar con el nivel de clorofila y de antocianinas para hojas viejas y nuevas de 
+
+Toledo: Cistus ladanifer y Quercus ilex
+Vlencia: Cistus albidus y Quercus ilex
+
+Chlorophyll content was used as a proxy of the good photosynthetic functioning while anthocyanin content was used to measure plant response to herbivory.
+
+```{r}
+# Cargar las librerías necesarias
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(ggforce)
+```
+
+```{r}
+# Cargar el archivo de datos
+dualex_data <- read_csv("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/dualex_data.csv")
+head(dualex_data)
+```
+Voy a trabajar solo con new leaves pues las respuestas son así:
+
+*Toledo*
+Antocianinas: Nuevas de Quercus ilex y viejas de Cistus ladanifer.
+Clorofila: Nuevas de Quercus ilex y viejas de Cistus ladanifer.
+*Valencia*
+Antocianinas: Nuevas  Cistus albus
+Clorofila: Nuevas de Cistus albus
+
+```{r}
+#Filtro para apparent_density y para valores faltantes, y duplocados
+dualex_data<- dualex_data %>%
+  filter(level == "new_leave")
+dualex_data <- dualex_data %>%
+  filter(!is.na(valor))
+dualex_data <- dualex_data %>%
+  distinct()
+
+dualex_data <- dualex_data %>%
+  filter(!(site == "toledo" & 
+           is.na(habitat) & 
+           treatment == "control" & 
+           is.na(plot) & 
+           is.na(sampling_unit) & 
+           year == 2022 & 
+           is.na(date) & 
+           variable_type == "Cistus_ladanifer" & 
+           variable_name == "clorofila" & 
+           level == "new_leave" & 
+           valor == 39.924 & 
+           is.na(units) & 
+           is.na(comments) & 
+           author_code == "234CL"))
+
+dualex_data <- dualex_data %>%
+  filter(!(site == "toledo" & 
+           is.na(habitat) & 
+           treatment == "control" & 
+           is.na(plot) & 
+           is.na(sampling_unit) & 
+           year == 2022 & 
+           is.na(date) & 
+           variable_type == "Cistus_ladanifer" & 
+           variable_name == "antocianina" & 
+           level == "new_leave" & 
+           valor == 0.199 & 
+           is.na(units) & 
+           is.na(comments) & 
+           author_code == "234CL"))
+
+#Vamos a ver cuantas veces está repetido cada author_code
+author_code_count <- dualex_data %>%
+  count(author_code, name = "count") %>%
+  arrange(desc(count))  # Ordenar de mayor a menor
+
+dualex_data <- dualex_data %>%
+  filter(!(site == "toledo" & 
+           is.na(habitat) & 
+           treatment == "control" & 
+           is.na(plot) & 
+           is.na(sampling_unit) & 
+           year == 2022 & 
+           is.na(date) & 
+           variable_type == "Cistus_ladanifer" & 
+           variable_name == "clorofila" & 
+           level == "new_leave" & 
+           valor == 39.924 & 
+           is.na(units) & 
+           is.na(comments) & 
+           author_code == "234CL"))
+
+
+# Me voy a cargar todas las entradas de plantas que solo se hayan muestreado un año.
+
+author_codes_to_remove <- author_code_count %>%
+  filter(count == 2) %>%
+  pull(author_code)
+
+
+
+dualex_data <- dualex_data %>%
+  filter(!(author_code %in% author_codes_to_remove))
+
+#Comprobación
+author_code_count_2 <- dualex_data %>%
+  count(author_code, name = "count") %>%
+  arrange(desc(count))  # Ordenar de mayor a menor
+
+
+#Elimino filas de clorofila por errores en tratamiento
+
+head(dualex_data)
+```
+
+
+```{r}
+clorofila_data<- dualex_data %>%
+  filter(variable_name == "clorofila")
+clorofila_baci<- clorofila_data %>%
+  filter(variable_type == "Quercus_ilex")
+
+antocianina_data<- dualex_data %>%
+  filter(variable_name == "antocianina")
+antocianina_baci<- dualex_data %>%
+  filter(variable_type == "Quercus_ilex")
+```
+
+## Clean data save for baci
+```{r}
+write.csv(clorofila_baci, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/clorofila.csv", row.names = FALSE)
+
+write.csv(antocianina_baci, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/baci/antocianina.csv", row.names = FALSE)
+```
+
+```{r}
+clorofila_data<- dualex_data %>%
+  filter(variable_name == "clorofila")
+
+clorofila_data <- clorofila_data %>%
+  mutate(sampling_unit_new = paste(site, treatment, variable_type, variable_name, author_code, sep = "/"))
+
+author_code_count_3 <- clorofila_data %>%
+  count(sampling_unit_new, name = "count") %>%
+  arrange(desc(count))  # Ordenar de mayor a menor
+
+# Me voy a cargar aquellas plantas cuyo código sea el mismo, pero tengan diferente
+clorofila_data <- clorofila_data %>%
+  filter(!(author_code %in% c("234CL", "335CL")))
+
+author_code_count_3 <- clorofila_data %>%
+  count(sampling_unit_new, name = "count") %>%
+  arrange(desc(count))  # Ordenar de mayor a menor
+```
+
+
+```{r}
+antocianina_data<- dualex_data %>%
+  filter(variable_name == "antocianina")
+
+antocianina_data <- antocianina_data %>%
+  mutate(sampling_unit_new = paste(site, treatment, variable_type, variable_name, author_code, sep = "/"))
+
+author_code_count_4 <- antocianina_data %>%
+  count(sampling_unit_new, name = "count") %>%
+  arrange(desc(count))  # Ordenar de mayor a menor
+
+# Me voy a cargar aquellas plantas cuyo código sea el mismo, pero tengan diferente
+antocianina_data <- antocianina_data %>%
+  filter(!(author_code %in% c("234CL", "335CL")))
+
+author_code_count_4 <- antocianina_data %>%
+  count(sampling_unit_new, name = "count") %>%
+  arrange(desc(count))  # Ordenar de mayor a menor
+```
+
+
+```{r}
+antocianina_data
+clorofila_data
+```
+
+# Cálculo de deltas: 
+```{r}
+# Filtrar los datos para los años 2021 y 2022
+antocianina_data_2021 <- antocianina_data %>%
+  filter(year == 2021) %>%
+  select(sampling_unit_new, observation_2021 = valor)
+
+antocianina_data_2022 <- antocianina_data %>%
+  filter(year == 2022) %>%
+  select(sampling_unit_new, observation_2022 = valor)
+
+# Unir los datos de 2021 y 2022 por sampling_unit_new
+antocianina_delta <- antocianina_data_2022 %>%
+  left_join(antocianina_data_2021, by = "sampling_unit_new")
+
+# Calcular el delta (diferencia) entre 2022 y 2021
+antocianina_delta <- antocianina_delta %>%
+  mutate(delta = observation_2022 - observation_2021)
+
+# Ver el resultado
+head(antocianina_delta)
+```
+# Cálculo de deltas: 
+```{r}
+# Filtrar los datos para los años 2021 y 2022
+clorofila_data_2021 <- clorofila_data %>%
+  filter(year == 2021) %>%
+  select(sampling_unit_new, observation_2021 = valor)
+
+clorofila_data_2022 <- clorofila_data %>%
+  filter(year == 2022) %>%
+  select(sampling_unit_new, observation_2022 = valor)
+
+# Unir los datos de 2021 y 2022 por sampling_unit_new
+clorofila_delta <- clorofila_data_2022 %>%
+  left_join(clorofila_data_2021, by = "sampling_unit_new")
+
+# Calcular el delta (diferencia) entre 2022 y 2021
+clorofila_delta <- clorofila_delta %>%
+  mutate(delta = observation_2022 - observation_2021)
+
+# Ver el resultado
+head(clorofila_delta)
+```
+```{r}
+antocianina_delta <- antocianina_delta %>%
+  separate(sampling_unit_new, into = c("site", "treatment", "species", "variable", "sampling_unit"), sep = "/") %>%
+  mutate(
+    indice = "antocianina_delta",  # Columna con el valor "apparent_density"
+    valor = delta  # Renombramos la columna delta a "valor"
+  )
+
+antocianina_delta <- antocianina_delta %>%
+  select(-observation_2022, -observation_2021, -delta, -variable)
+
+antocianina_delta <- antocianina_delta %>%
+  mutate(sampling_unit_new = paste(site, treatment,species, sampling_unit, sep = "/"))
+
+antocianina_delta <- antocianina_delta %>%
+  select( -sampling_unit)
+
+antocianina_delta <- antocianina_delta %>%
+  rename(sampling_unit = sampling_unit_new) %>%
+  select(site, treatment,species, sampling_unit, indice, valor)
+head(antocianina_delta)
+```
+```{r}
+clorofila_delta <- clorofila_delta %>%
+  separate(sampling_unit_new, into = c("site", "treatment", "species", "variable", "sampling_unit"), sep = "/") %>%
+  mutate(
+    indice = "clorofila_delta",  # Columna con el valor "apparent_density"
+    valor = delta  # Renombramos la columna delta a "valor"
+  )
+
+clorofila_delta <- clorofila_delta %>%
+  select(-observation_2022, -observation_2021, -delta, -variable)
+
+clorofila_delta <- clorofila_delta %>%
+  mutate(sampling_unit_new = paste(site, treatment,species, sampling_unit, sep = "/"))
+
+clorofila_delta <- clorofila_delta %>%
+  select( -sampling_unit)
+
+clorofila_delta <- clorofila_delta %>%
+  rename(sampling_unit = sampling_unit_new) %>%
+  select(site, treatment,species, sampling_unit, indice, valor)
+head(clorofila_delta)
+```
+
+
+```{r}
+library(ggplot2)
+
+# Definir los colores para cada tratamiento
+colores_tratamiento4 <- c(
+  "control" = "#6A9373", 
+  "control_high" = "#6A9373", 
+  "control_hyper" = "#6A9373", 
+  "high" = "#E6B800",  
+  "hyper" = "#9B5F96"
+)
+
+# Asumiendo que los datos ya están preparados en suelo_delta
+ggplot(clorofila_delta, aes(x = treatment, y = valor, fill = treatment)) +
+  geom_boxplot(alpha = 0.7) +
+  facet_grid(rows = vars(species), cols = vars(site), scales = "free_y") +  # Facetado por especie y sitio
+  scale_fill_manual(values = colores_tratamiento4) +  # Paleta de colores personalizada
+  labs(title = "Distribución de clorofila delta por tratamiento, especie y sitio",
+       x = "Tratamiento", y = "Diferencia de clorofila (delta)") +
+  theme_minimal() +
+  theme(legend.position = "none")  # Ocultar la leyenda
+
+ggplot(antocianina_delta, aes(x = treatment, y = valor, fill = treatment)) +
+  geom_boxplot(alpha = 0.7) +
+  facet_grid(rows = vars(species), cols = vars(site), scales = "free_y") +  # Facetado por especie y sitio
+  scale_fill_manual(values = colores_tratamiento4) +  # Paleta de colores personalizada
+  labs(title = "Distribución de antocianina delta por tratamiento, especie y sitio",
+       x = "Tratamiento", y = "Diferencia de antocianina (delta)") +
+  theme_minimal() +
+  theme(legend.position = "none")  # Ocultar la leyenda
+```
+
+## Clean data save 🌍
+```{r}
+dualex_delta <- bind_rows(antocianina_delta, clorofila_delta)
+write.csv(dualex_delta, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/functional/dualex_delta.csv", row.names = FALSE)
+```
+
+Limpio el espacio
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```

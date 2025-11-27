@@ -1,0 +1,172 @@
+---
+title: "Code_1.9_data_carpintry_ticksmicromamiferos"
+author: "Jorge"
+date: "2025-03-12"
+output: html_document
+---
+🐀 
+
+Este es el dataset de carpintería de datos para preparar los datos de **Micromamíferos** que me envía Laura Fuentes Moyayo.
+
+
+-   *Dimensión temporal:* Los dos años
+-   *Dimensión espacial:* los dos sitios
+-   *jorge_traductor* Laura fuentes me ha dajado la chuleta en el excel para hacer la interpretación de los datos
+
+
+Cargando paquetes
+```{r cargando paquetes, include=FALSE}
+library(knitr)
+library(readxl)
+library(dplyr)
+library(stringr)
+library(lubridate)
+```
+
+Cargando datos
+```{r}
+micromammals_raw_data <- read_excel("~/Documents/GitHub/PAELLALAB/INCREMENTO/data_raw/ticks_micromamiferos/Raw data_Micromammals and ticks.xlsx", 
+    sheet = "Micromammals")
+
+colnames(micromammals_raw_data) <- micromammals_raw_data[1, ]  # Asigna la primera fila como nombres
+micromammals_raw_data <- micromammals_raw_data[-1, ]  # Elimina la primera fila
+
+# Ver estructura del dataset limpio
+str(micromammals_raw_data)
+```
+
+Transformando los datos
+```{r}
+# Definir los nuevos nombres de columnas a agregar
+ new_columns <- c("site", "habitat", "treatment", "plot", "sampling_unit", "year", 
+                "date", "variable_type", "variable_name", 
+                "units", "comments", "author_code")
+
+# Agregar las nuevas columnas vacías al dataset
+ micromammals_raw_data[new_columns] <- NA
+
+
+# Modificar la nueva columna 'site' según los valores de 'Site'
+ micromammals_raw_data <- micromammals_raw_data %>%
+   mutate(site = case_when(
+     Site == "MuelaC"  ~ "valencia",
+     Site == "QuintosM" ~ "toledo",
+     TRUE ~ NA_character_  # Deja NA si no coincide con los valores dados
+   )) %>%
+   select(-Site)  # Eliminar la antigua columna 'Site'
+
+# Modificar la nueva columna 'treatment' según los valores de 'Treatment'
+ micromammals_raw_data <- micromammals_raw_data %>%
+   mutate(treatment = case_when(
+     Treatment == "Control_A"      ~ "control_high",
+     Treatment == "Control_B"      ~ "control_hyper",
+     Treatment == "High_Density"   ~ "high",
+     Treatment == "Hyper_Density"  ~ "hyper",
+     Treatment == "Control"        ~ "control",
+    TRUE ~ NA_character_  # Deja NA si no coincide con los valores dados
+   )) %>%
+   select(-Treatment)  # Eliminar la antigua columna 'Treatment'
+
+# Modificar la nueva columna 'year' según los valores de 'Year'
+ micromammals_raw_data <- micromammals_raw_data %>%
+   mutate(year = case_when(
+     Year == "2021"      ~ "2021",
+     Year == "2022"      ~ "2022",
+     TRUE ~ NA_character_  # Deja NA si no coincide con los valores dados
+   )) %>%
+   select(-Year)  # Eliminar la antigua columna 'Year'
+
+# Modificar la nueva columna 'sampling_unit' según los valores de 'Trap'
+ micromammals_raw_data <- micromammals_raw_data %>%
+   mutate(sampling_unit = Trap
+   ) %>%
+   select(-Trap)  # Eliminar la antigua columna 'Trap'
+
+ micromammals_raw_data <- micromammals_raw_data %>%
+   mutate(sampling_unit = paste0("trap_", sampling_unit))
+
+ # Asignar el valor "taxonomy" a toda la columna 'variable_type'
+ micromammals_raw_data <- micromammals_raw_data %>%
+   mutate(variable_type = "taxonomy")
+
+ #Asignar el valor "micrommammal" a toda la columna 'variable_name'
+ micromammals_raw_data <- micromammals_raw_data %>%
+   mutate(variable_name = "micrommammal")
+
+# Asignar el valor "n_individuals" a toda la columna 'units'
+ micromammals_raw_data <- micromammals_raw_data %>%
+   mutate(units = "n_individuals")
+
+
+# Asegurarnos de que las columnas Apodemus y Sorex sean numéricas
+ micromammals_raw_data <- micromammals_raw_data %>%
+   mutate(
+     Apodemus = as.numeric(Apodemus),
+     Sorex = as.numeric(Sorex)
+   )
+
+ str (micromammals_raw_data)
+
+# Pivotar las columnas Apodemus y Sorex
+ micromammals_long <- micromammals_raw_data %>%
+   pivot_longer(
+     cols = c(Apodemus, Sorex),  # Las columnas de las especies
+     names_to = "level",          # Esta será la columna con el nombre de la especie
+     values_to = "observation"    # Esta será la columna con el número de individuos
+   ) %>%
+  # Reemplazar NA por 0 en observation para aquellos casos donde no haya capturado nada
+   mutate(observation = replace_na(observation, 0))
+
+# Cambiar los valores en 'level' y reordenar las columnas
+ micromammals_long <- micromammals_long %>%
+   # Cambiar los valores de 'level'
+   mutate(level = case_when(
+     level == "Apodemus" ~ "apodemus_sp",  # Reemplazar "Apodemus" por "apodemus_sp"
+     level == "Sorex" ~ "sorex_sp",        # Reemplazar "Sorex" por "sorex_sp"
+     TRUE ~ level                           # Mantener los demás valores igual
+   )) %>%
+   # Reordenar las columnas
+   select(site, habitat, treatment, plot, sampling_unit, year, date, variable_type, variable_name, 
+          level, observation, units, comments, author_code)
+
+# Verificar la estructura del dataset y las primeras filas
+# str(micromammals_long)
+# head(micromammals_long)
+
+```
+
+
+
+## Clean data save micromamíferos 🐀
+```{r}
+write.csv(micromammals_long, file = "/Users/jorgeislaescudero/Documents/GitHub/PAELLALAB/INCREMENTO/data_prepared/micrommals_clean_data.csv", row.names = FALSE)
+```
+
+
+# Esfuerzo de muestreo variable
+```{r}
+# Calcular el esfuerzo de muestreo (número de trampas por cada combinación de site, year y treatment)
+micromammals_raw_data %>%
+  group_by(site, year, treatment) %>%
+  summarise(
+    effort = n_distinct(sampling_unit),  # Contar las trampas únicas
+    .groups = "drop"
+  ) %>%
+  # Crear una tabla bonita con knitr::kable
+  kable(
+    caption = "Resumen del esfuerzo de muestreo por sitio, año y tratamiento",
+    col.names = c("Sitio", "Año", "Tratamiento", "Número de trampas")
+  )
+
+```
+Limpio el espacio
+```{r}
+# Elimina todos los objetos del entorno
+rm(list = ls())
+
+# Limpia la memoria RAM
+gc()
+
+# Opcional: limpia la consola (solo en RStudio)
+cat("\014")
+```
